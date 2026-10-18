@@ -94,6 +94,7 @@ class PerformanceHealthService:
         evidence_per_item: int = 0,
         with_facets: bool = False,
         with_summary: bool = False,
+        row_decisions: bool = False,
     ) -> PerformancePage:
         """One page and its plan links, plus whatever else the caller renders.
 
@@ -124,7 +125,12 @@ class PerformanceHealthService:
         evidence = await self._evidence_for(rows, evidence_per_item)
         items = [
             {
-                **serialize(row, links[row.opportunity_id], summary=query.view == "summary"),
+                **serialize(
+                    row,
+                    links[row.opportunity_id],
+                    summary=query.view == "summary",
+                    decisions=row_decisions,
+                ),
                 **(
                     evidence_block(
                         evidence.get(row.opportunity_id, []), row.observations_total, 0

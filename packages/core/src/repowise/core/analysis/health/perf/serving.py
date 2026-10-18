@@ -407,12 +407,18 @@ def intervention_file(opportunity: PerformanceOpportunity) -> str:
 # ---------------------------------------------------------------------------
 
 
-def serialize(row: Any, link: PlanLink, *, summary: bool = False) -> dict[str, Any]:
+def serialize(
+    row: Any, link: PlanLink, *, summary: bool = False, decisions: bool = False
+) -> dict[str, Any]:
     """Rebuild the canonical opportunity payload from row plus details.
 
     Columns carry what a query filters or orders on and ``details_json``
     carries the rest, so no fact is stored twice and nothing here computes
     a value the writer already decided.
+
+    ``decisions`` adds the fix, gain and effort to a ``summary`` row, for a
+    list a person acts on from (the dashboard queue). The agent surface keeps
+    its summary shape, so its responses do not grow.
     """
     details = detail_map(row)
     payload = {
@@ -445,15 +451,14 @@ def serialize(row: Any, link: PlanLink, *, summary: bool = False) -> dict[str, A
         # Why it can wait; the stored rank already orders by loop size.
         "lower_priority": LOW_PRIORITY_LABEL.get(perf_low_priority(row) or ""),
     }
-    payload.update(_decision_fields(row, details))
     if summary:
-        return payload
-    return {**payload, **_detail_fields(row, details)}
+        return {**payload, **_decision_fields(row, details)} if decisions else payload
+    return {**payload, **_decision_fields(row, details), **_detail_fields(row, details)}
 
 
 def _decision_fields(row: Any, details: dict[str, Any]) -> dict[str, Any]:
     """What a row needs to be acted on from a list: the fix, its gain and its
-    effort. Small, so the ``summary`` view carries them too."""
+    effort. Always on the detail view; on a summary row only when asked."""
     fix_strategy = field(row, "fix_strategy")
     plan = details.get("plan") or {}
     return {

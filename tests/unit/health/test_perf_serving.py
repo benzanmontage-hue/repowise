@@ -92,7 +92,11 @@ def test_summary_view_keeps_what_a_row_is_acted_on_by() -> None:
                      "steps": [{"order": 1}], "validation": {"total": 0}},
         },
     }
-    summary = serialize(row, plan_link({"plan_state": "no_safe_plan"}, None), summary=True)
+    link = plan_link({"plan_state": "no_safe_plan"}, None)
+    # The agent surface's summary shape does not grow.
+    bare = serialize(row, link, summary=True)
+    assert not {"fix", "gain_text", "plan_economics"} & bare.keys()
+    summary = serialize(row, link, summary=True, decisions=True)
     assert summary["fix"] == {
         "strategy": "batch_or_prefetch_io", "safety": "advisory", "rationale": "One sink."
     }

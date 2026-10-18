@@ -118,7 +118,12 @@ async def list_performance_opportunities(
         offset=offset,
     )
     page = await _service(session, repo_id, include_unverified=include_unverified).page(
-        query, evidence_per_item=_EVIDENCE_PER_ITEM, with_facets=True, with_summary=True
+        query,
+        evidence_per_item=_EVIDENCE_PER_ITEM,
+        with_facets=True,
+        with_summary=True,
+        # The tab acts on summary rows, so they carry fix, gain and effort.
+        row_decisions=True,
     )
     return {
         "items": label_previews(
