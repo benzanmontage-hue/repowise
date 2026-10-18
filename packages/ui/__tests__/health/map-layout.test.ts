@@ -85,6 +85,17 @@ describe("the area hierarchy", () => {
     expect(index.areas.get("packages")!.band).toBe("good");
   });
 
+  it("counts an empty file in its folders, as the server does, without weighing it as code", () => {
+    const withEmpty = deriveAreaIndex([
+      f("lib/a.py", 100, null, { score: 9 }),
+      f("lib/__init__.py", 0, null, { score: 1 }),
+    ]);
+    const lib = withEmpty.areas.get("lib")!;
+    expect([lib.fileCount, lib.directFileCount, lib.nloc]).toEqual([2, 2, 100]);
+    // Weighted with the floor of 1: (9 * 100 + 1 * 1) / 101.
+    expect(lib.health).toBe(8.92);
+  });
+
   it("collapses a directory chain into one disc named by the whole chain", () => {
     // packages/core holds only src: one disc, named "core/src".
     expect(chainEnd(index, "packages/core")).toBe("packages/core/src");

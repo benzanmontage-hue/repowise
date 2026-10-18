@@ -130,8 +130,9 @@ interface Acc {
 
 /**
  * The hierarchy behind a flat file feed, for a host without the areas API.
- * Health is the NLOC-weighted mean of the scored files, the same fold the
- * server uses, and every directory is expanded because every file is here.
+ * The same fold the server uses: every file counts, an empty one included,
+ * and health is the mean of the scored files weighted by NLOC floored at 1.
+ * Every directory is expanded because every file is here.
  */
 export function deriveAreaIndex(files: readonly CodeHealthMapFile[]): AreaIndex {
   const acc = new Map<string, Acc>();
@@ -144,17 +145,18 @@ export function deriveAreaIndex(files: readonly CodeHealthMapFile[]): AreaIndex 
     return a;
   };
   for (const f of files) {
-    if (f.nloc <= 0) continue;
+    const nloc = Math.max(f.nloc, 0);
+    const weight = Math.max(nloc, 1);
     const dir = dirOf(f.file_path);
     const chain = ancestry(dir);
     for (const p of chain) {
       const a = touch(p);
       a.files += 1;
-      a.nloc += f.nloc;
+      a.nloc += nloc;
       if (f.score != null) {
         a.scored += 1;
-        a.scoredNloc += f.nloc;
-        a.weighted += f.score * f.nloc;
+        a.scoredNloc += weight;
+        a.weighted += f.score * weight;
       }
     }
     touch(dir).direct += 1;
