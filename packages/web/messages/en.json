@@ -985,7 +985,48 @@
     }
   },
   "coupling": {
-    "loadFailed": "Couldn't load change coupling"
+    "loadFailed": "Couldn't load change coupling",
+    "area": {
+      "rootLabel": "Repository root",
+      "ledeLabel": "Hidden coupling",
+      "ledeUnit": "{count, plural, one {area pair} other {area pairs}}",
+      "verdict": "{count, plural, one {# area pair changes} other {# area pairs change}} together with no import link between their files.",
+      "scope": "Across {pairs, plural, one {# file pair} other {# file pairs}}, grouped {depth, plural, one {# level} other {# levels}} down. Test files are left out: a test is expected to change with its code.",
+      "scopeWithTests": "Across {pairs, plural, one {# file pair} other {# file pairs}}, grouped {depth, plural, one {# level} other {# levels}} down, tests included.",
+      "cleanTitle": "No hidden coupling between areas {depth, plural, one {# level} other {# levels}} down",
+      "cleanBody": "Every one of the {pairs, plural, one {# file pair} other {# file pairs}} that change together across areas is explained by a dependency.",
+      "cleanEmpty": "No file pairs change together across areas under these filters.",
+      "showing": "Showing the top {shown, number} of {total, number} area pairs.",
+      "filePairs": "{count, plural, one {# file pair} other {# file pairs}}",
+      "coChanges": "{count, plural, one {# co-change} other {# co-changes}}",
+      "lastTogether": "last {date}",
+      "unexplained": "{count, number} unexplained ({pct}%)",
+      "allExplained": "All explained",
+      "promptLabel": "Copy prompt for your agent",
+      "bulkPromptLabel": "Copy prompt for these {count, number}",
+      "promptTitle": "Decouple prompt",
+      "promptDescription": "A ready-to-paste prompt asking your agent to find why these areas change together with no dependency between them, and to decouple what is accidental.",
+      "backToAreas": "All area pairs",
+      "pairHeadline": "{unexplained, number} of {pairs, plural, one {# file pair has} other {# file pairs have}} no import link.",
+      "allFilePairs": "Every file pair",
+      "browseFilePairs": "Browse every file pair",
+      "workspaceLink": "Coupling across repositories",
+      "filters": {
+        "label": "Filter couplings",
+        "unexplained": "Unexplained only",
+        "crossArea": "Across areas only",
+        "includeTests": "Include tests",
+        "minSupport": "Shared commits",
+        "anySupport": "Any",
+        "atLeast": "{count}+",
+        "recency": "Changed together",
+        "anyTime": "Any time",
+        "lastDays": "Last {days} days of history",
+        "lastYear": "Last year of history",
+        "depth": "Group at depth",
+        "autoDepth": "Auto ({depth})"
+      }
+    }
   },
   "coverage": {
     "jobRunning": "A generation job is already running. Wait for it to finish.",

@@ -985,7 +985,48 @@
     }
   },
   "coupling": {
-    "loadFailed": "无法加载变更耦合"
+    "loadFailed": "无法加载变更耦合",
+    "area": {
+      "rootLabel": "仓库根目录",
+      "ledeLabel": "隐性耦合",
+      "ledeUnit": "{count, plural, other {组区域}}",
+      "verdict": "{count, plural, other {# 组区域}}一起变更，但其文件之间没有任何导入关联。",
+      "scope": "覆盖 {pairs, plural, other {# 个文件对}}，按向下 {depth, plural, other {# 层}}分组。已排除测试文件：测试本应随其代码一起变更。",
+      "scopeWithTests": "覆盖 {pairs, plural, other {# 个文件对}}，按向下 {depth, plural, other {# 层}}分组，包含测试。",
+      "cleanTitle": "向下 {depth, plural, other {# 层}}的区域之间没有隐性耦合",
+      "cleanBody": "跨区域一起变更的 {pairs, plural, other {# 个文件对}}全部都能由依赖关系解释。",
+      "cleanEmpty": "在当前筛选条件下，没有跨区域一起变更的文件对。",
+      "showing": "显示 {total, number} 组区域中排名前 {shown, number} 的。",
+      "filePairs": "{count, plural, other {# 个文件对}}",
+      "coChanges": "{count, plural, other {# 次共同变更}}",
+      "lastTogether": "最近一次 {date}",
+      "unexplained": "{count, number} 个无法解释（{pct}%）",
+      "allExplained": "全部可解释",
+      "promptLabel": "为你的智能体复制提示词",
+      "bulkPromptLabel": "为这 {count, number} 组复制提示词",
+      "promptTitle": "解耦提示词",
+      "promptDescription": "一段可直接粘贴的提示词，让你的智能体找出这些区域在彼此没有依赖的情况下为何一起变更，并对偶然产生的耦合进行解耦。",
+      "backToAreas": "全部区域对",
+      "pairHeadline": "{pairs, plural, other {# 个文件对}}中有 {unexplained, number} 个没有导入关联。",
+      "allFilePairs": "全部文件对",
+      "browseFilePairs": "浏览全部文件对",
+      "workspaceLink": "跨仓库耦合",
+      "filters": {
+        "label": "筛选耦合",
+        "unexplained": "仅无法解释的",
+        "crossArea": "仅跨区域的",
+        "includeTests": "包含测试",
+        "minSupport": "共同提交数",
+        "anySupport": "不限",
+        "atLeast": "{count}+",
+        "recency": "共同变更时间",
+        "anyTime": "全部时间",
+        "lastDays": "历史中最近 {days} 天",
+        "lastYear": "历史中最近一年",
+        "depth": "分组深度",
+        "autoDepth": "自动（{depth}）"
+      }
+    }
   },
   "coverage": {
     "jobRunning": "已有生成任务正在运行，请等它完成。",
