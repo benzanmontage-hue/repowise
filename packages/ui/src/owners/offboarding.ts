@@ -64,11 +64,11 @@ export interface OffboardingTotals {
   severeFiles: number;
   hotspots: number;
   atRiskNloc: number;
-  /** NLOC across every file in the matrix. */
+  /** NLOC across the files in scope (every file, or only changing ones). */
   totalNloc: number;
   /** atRiskNloc / totalNloc, 0 when the matrix has no code. */
   nlocShare: number;
-  /** Files in the matrix. */
+  /** Files in scope. */
   trackedFiles: number;
 }
 
@@ -137,7 +137,11 @@ function rollUpAreas(files: OffboardingFile[]): OffboardingArea[] {
 }
 
 export interface OffboardingOptions {
-  /** Only files changed in the last 90 days count: code still moving, as knowledge loss reads it. */
+  /**
+   * Only files changed in the last 90 days count: code still moving, as
+   * knowledge loss reads it. Every total, denominators included, is then
+   * over those files.
+   */
   changedOnly?: boolean;
 }
 
@@ -150,10 +154,12 @@ export function simulateOffboarding(
   const leaving = leaverIndices(matrix, leavingKeys);
   const files: OffboardingFile[] = [];
   let touchedFiles = 0;
+  let trackedFiles = 0;
   let totalNloc = 0;
   for (const row of matrix.files) {
-    totalNloc += row[2];
     if (changedOnly && !row[8]) continue;
+    trackedFiles += 1;
+    totalNloc += row[2];
     const { lost, heir } = fileExposure(row[7], leaving);
     if (lost <= 0) continue;
     touchedFiles += 1;
@@ -173,7 +179,7 @@ export function simulateOffboarding(
       atRiskNloc,
       totalNloc,
       nlocShare: totalNloc > 0 ? atRiskNloc / totalNloc : 0,
-      trackedFiles: matrix.files.length,
+      trackedFiles,
     },
     areas: rollUpAreas(files),
   };

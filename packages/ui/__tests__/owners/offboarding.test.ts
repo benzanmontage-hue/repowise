@@ -86,11 +86,13 @@ describe("simulateOffboarding", () => {
     expect(r.areas.map((a) => a.dir)).toEqual(["src/api", "src/ui"]);
   });
 
-  it("counts only changing files when asked, keeping the whole codebase as the denominator", () => {
+  it("counts only changing files when asked, denominators included", () => {
     const r = simulateOffboarding(MATRIX, ["ana"], 0.5, { changedOnly: true });
     expect(r.areas.flatMap((a) => a.files.map((f) => f.path))).toEqual(["src/api/routes.py"]);
     expect(r.totals.touchedFiles).toBe(2);
-    expect(r.totals.totalNloc).toBe(255);
+    expect(r.totals.totalNloc).toBe(200);
+    expect(r.totals.trackedFiles).toBe(3);
+    expect(r.totals.nlocShare).toBeCloseTo(100 / 200);
   });
 
   it("ignores unknown keys and an empty selection", () => {

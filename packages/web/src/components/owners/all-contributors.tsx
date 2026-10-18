@@ -27,7 +27,9 @@ export function AllContributors({ repoId, automationCount }: { repoId: string; a
     directoryFiltersFromParams(searchParams),
   );
   const debouncedQ = useDebounce(filters.q, 250);
-  // The table's search, sort and toggle live in the URL, so a filtered view is a link.
+  // The table's search, sort and toggle live in the URL, so a filtered view is a
+  // link. The URL seeds the state once; the table owns it after that, and the
+  // first write only normalises a hand-edited query.
   useEffect(() => {
     const next = writeDirectoryFilters(searchParams, { ...filters, q: debouncedQ });
     if (next !== searchParams.toString()) router.replace(next ? `?${next}` : "?", { scroll: false });
