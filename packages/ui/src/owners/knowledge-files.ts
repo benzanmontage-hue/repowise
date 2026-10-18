@@ -56,6 +56,8 @@ export interface KnowledgeFileFacts {
   healthScore: number | null;
   isHotspot: boolean;
   lowHealth: boolean;
+  /** A commit in the 90 days before HEAD. */
+  changed90d: boolean;
 }
 
 export function fileFacts(matrix: KnowledgeMatrix, file: KnowledgeMatrixFile): KnowledgeFileFacts {
@@ -66,6 +68,7 @@ export function fileFacts(matrix: KnowledgeMatrix, file: KnowledgeMatrixFile): K
     healthScore: file[3],
     isHotspot: file[4],
     lowHealth: isLowHealth(file[3]),
+    changed90d: file[8],
   };
 }
 

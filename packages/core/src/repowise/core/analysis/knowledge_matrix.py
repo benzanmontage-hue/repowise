@@ -119,6 +119,8 @@ def build_knowledge_matrix(
                 int(row_field(m, "bus_factor") or 0),
                 author_pos[primary] if primary else None,
                 [(author_pos[key], round(share, 3)) for key, share in shares],
+                # Changed in the activity window: knowledge loss only counts code still moving.
+                int(row_field(m, "commit_count_90d") or 0) > 0,
             )
         )
     return {

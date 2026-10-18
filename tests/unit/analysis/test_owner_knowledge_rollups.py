@@ -240,10 +240,14 @@ def test_knowledge_matrix_rows_are_positional_and_indexed() -> None:
         for row in matrix["files"]
     }
     assert list(files) == sorted(r["file_path"] for r in ROWS)
-    assert files["core/a.py"] == (0, "a.py", 120, 6.2, True, 1, 0, [(0, 0.8), (1, 0.2)])
+    assert files["core/a.py"][:8] == (0, "a.py", 120, 6.2, True, 1, 0, [(0, 0.8), (1, 0.2)])
     assert files["lib/x.py"][2:4] == (40, None)
     # A bot-owned file keeps its row, with no owner and no authors.
-    assert files["deps/lock.py"][6:] == (None, [])
+    assert files["deps/lock.py"][6:8] == (None, [])
+    # The last element says whether the file changed in the activity window.
+    assert {path: row[8] for path, row in files.items()} == {
+        r["file_path"]: (r.get("commit_count_90d") or 0) > 0 for r in ROWS
+    }
 
 
 def test_an_email_only_owner_owns_files_on_every_surface() -> None:

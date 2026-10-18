@@ -177,6 +177,8 @@ export type KnowledgeMatrixFile = [
   busFactor: number,
   primaryOwner: number | null,
   authors: KnowledgeMatrixShare[],
+  /** A commit in the 90 days before HEAD. */
+  changed90d: boolean,
 ];
 
 /**

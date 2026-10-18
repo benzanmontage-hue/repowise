@@ -358,7 +358,9 @@ async def test_knowledge_matrix(client: AsyncClient, app) -> None:
     a, b = keys.index("alice@example.com"), keys.index("bob@example.com")
     main = next(f for f in data["files"] if f[1] == "main.py")
     # No health row: score null, nloc 0.
-    assert main == [0, "main.py", 0, None, True, 1, a, [[a, 0.7], [b, 0.3]]]
+    assert main == [0, "main.py", 0, None, True, 1, a, [[a, 0.7], [b, 0.3]], True]
+    utils = next(f for f in data["files"] if f[1] == "utils.py")
+    assert utils[8] is True  # two commits in the window
 
 
 @pytest.mark.asyncio

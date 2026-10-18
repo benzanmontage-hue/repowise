@@ -136,10 +136,16 @@ function rollUpAreas(files: OffboardingFile[]): OffboardingArea[] {
   })).sort(compareAreas);
 }
 
+export interface OffboardingOptions {
+  /** Only files changed in the last 90 days count: code still moving, as knowledge loss reads it. */
+  changedOnly?: boolean;
+}
+
 export function simulateOffboarding(
   matrix: KnowledgeMatrix,
   leavingKeys: readonly string[],
   threshold: number = DEFAULT_OFFBOARDING_THRESHOLD,
+  { changedOnly = false }: OffboardingOptions = {},
 ): OffboardingResult {
   const leaving = leaverIndices(matrix, leavingKeys);
   const files: OffboardingFile[] = [];
@@ -147,6 +153,7 @@ export function simulateOffboarding(
   let totalNloc = 0;
   for (const row of matrix.files) {
     totalNloc += row[2];
+    if (changedOnly && !row[8]) continue;
     const { lost, heir } = fileExposure(row[7], leaving);
     if (lost <= 0) continue;
     touchedFiles += 1;

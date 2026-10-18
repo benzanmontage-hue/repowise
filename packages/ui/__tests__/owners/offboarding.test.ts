@@ -31,15 +31,15 @@ const MATRIX: KnowledgeMatrix = {
   dirs: ["", "src/api", "src/ui"],
   files: [
     // ana alone, hotspot -> severe when ana leaves
-    [1, "routes.py", 100, 9.0, true, 1, 0, [[0, 1.0]]],
+    [1, "routes.py", 100, 9.0, true, 1, 0, [[0, 1.0]], true],
     // ana 60 / bo 40: at risk at 50% (remaining 0.4), safe at 40%
-    [1, "auth.py", 50, 9.0, false, 2, 0, [[0, 0.6], [1, 0.4]]],
+    [1, "auth.py", 50, 9.0, false, 2, 0, [[0, 0.6], [1, 0.4]], false],
     // bo 70 / ana 30: ana leaving keeps 0.7, not at risk
-    [2, "view.tsx", 80, 3.0, false, 2, 1, [[1, 0.7], [0, 0.3]]],
+    [2, "view.tsx", 80, 3.0, false, 2, 1, [[1, 0.7], [0, 0.3]], true],
     // cy alone, weak health -> severe when cy leaves
-    [0, "setup.py", 20, 3.0, false, 1, 2, [[2, 1.0]]],
+    [0, "setup.py", 20, 3.0, false, 1, 2, [[2, 1.0]], true],
     // no history: bus factor 0 is never single-owner
-    [0, "empty.py", 5, null, false, 0, null, []],
+    [0, "empty.py", 5, null, false, 0, null, [], false],
   ],
 };
 
@@ -84,6 +84,13 @@ describe("simulateOffboarding", () => {
     const r = simulateOffboarding(MATRIX, ["ana", "bo"]);
     expect(r.totals.atRiskFiles).toBe(3);
     expect(r.areas.map((a) => a.dir)).toEqual(["src/api", "src/ui"]);
+  });
+
+  it("counts only changing files when asked, keeping the whole codebase as the denominator", () => {
+    const r = simulateOffboarding(MATRIX, ["ana"], 0.5, { changedOnly: true });
+    expect(r.areas.flatMap((a) => a.files.map((f) => f.path))).toEqual(["src/api/routes.py"]);
+    expect(r.totals.touchedFiles).toBe(2);
+    expect(r.totals.totalNloc).toBe(255);
   });
 
   it("ignores unknown keys and an empty selection", () => {

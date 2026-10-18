@@ -2473,7 +2473,7 @@ export interface KnowledgeMatrixAuthor {
 export interface KnowledgeMatrixResponse {
   authors: KnowledgeMatrixAuthor[];
   dirs: string[];
-  files: ([number, string, number, number | null, boolean, number, number | null, [number, number][]])[];
+  files: ([number, string, number, number | null, boolean, number, number | null, [number, number][], boolean])[];
 }
 
 /** One tool in the configurable surface, with the flags a UI needs. */

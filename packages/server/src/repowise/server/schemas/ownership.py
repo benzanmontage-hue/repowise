@@ -188,9 +188,10 @@ class KnowledgeMatrixAuthor(BaseModel):
 
 
 #: One file: (dir index, file name, nloc, health score, is_hotspot, bus_factor,
-#: primary owner author index, [(author index, share of human commits)]).
+#: primary owner author index, [(author index, share of human commits)],
+#: changed in the last 90 days).
 KnowledgeMatrixFile = tuple[
-    int, str, int, float | None, bool, int, int | None, list[tuple[int, float]]
+    int, str, int, float | None, bool, int, int | None, list[tuple[int, float]], bool
 ]
 
 
