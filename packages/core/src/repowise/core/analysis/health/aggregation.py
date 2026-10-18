@@ -30,6 +30,7 @@ from .scoring import (
     is_advisory,
     severity_deduction,
 )
+from .shape_curve import ceiling, continuous_base
 
 __all__ = [
     "MODULE_ROOT_LABEL",
@@ -204,13 +205,17 @@ def finding_base_deduction(finding: Any) -> float:
 
     Mirrors ``scoring.score_file``: a continuous ``deduction`` recorded in the
     finding's details (the coverage gradient scales with the uncovered fraction)
-    takes the place of the discrete severity table. Reading the override here is
-    what lets a breakdown show the continuous signal rather than a band proxy.
+    takes the place of the discrete severity table, and a critical sized finding
+    scales past its threshold (``shape_curve.continuous_base``).
     """
-    override = detail_map(finding).get("deduction")
+    details = detail_map(finding)
+    override = details.get("deduction")
     if isinstance(override, (int, float)):
         return float(override)
-    return severity_deduction(_severity_key(field(finding, "severity", None)))
+    severity = _severity_key(field(finding, "severity", None))
+    biomarker = field(finding, "biomarker_type", None) or ""
+    base = severity_deduction(severity)
+    return continuous_base(biomarker, base, severity == "critical", details)
 
 
 def finding_raw_deduction(finding: Any) -> float:
@@ -291,9 +296,11 @@ def score_breakdown(findings: Sequence[Any]) -> dict[str, Any]:
         if not entries:
             continue
         raw_each = [_scored_raw(f) for f in entries]
-        cap = static_cap
-        if category == HISTORY_CATEGORY:
-            cap, raw_each = history_cap(structure), destacked(raw_each)
+        # Only history keeps a hard cap; every other category follows the curve.
+        history = category == HISTORY_CATEGORY
+        cap = history_cap(structure) if history else ceiling(static_cap)
+        if history:
+            raw_each = destacked(raw_each)
         applied_each = [float(field(f, "health_impact", 0.0) or 0.0) for f in entries]
         raw_sum = sum(raw_each)
         applied_sum = sum(applied_each)
@@ -303,8 +310,8 @@ def score_breakdown(findings: Sequence[Any]) -> dict[str, Any]:
                 "cap": round(cap, 2),
                 "raw_deduction": round(raw_sum, 3),
                 "applied_deduction": round(applied_sum, 3),
-                # Category shed weight iff its applied total is held at the cap.
-                "capped": applied_sum < raw_sum - 1e-6,
+                # Held at the cap; a curved category sheds weight but never sits at its ceiling.
+                "capped": history and applied_sum < raw_sum - 1e-6,
                 "finding_count": len(entries),
                 "findings": [
                     {

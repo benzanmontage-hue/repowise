@@ -343,6 +343,17 @@ category, so git history alone costs a file at most 1.0. Before that cap, the
 history findings de-stack: the largest counts whole and each other one at 0.25
 (`destacked`), since a busy file trips several history markers for one cause.
 
+Every other defect category follows a saturating curve rather than stopping at
+its cap (`shape_curve.py`). A category's raw total `R` deducts
+`A * (1 - exp(-R / A))` with `A = 3.09 x cap`, so a second critical function
+still costs something and no category ever deducts more than 3.09 times its cap.
+Two rules feed the curve. Findings on one function count the largest in full and
+the rest at 0.25. A critical `complex_method`, `large_method` or
+`nested_complexity` finding deducts `2.0 x value / threshold` (CCN 25, 200 lines,
+nesting 7), so halving a CCN-50 function pays even while it stays critical. The
+3.09 is fitted so the corpus mean score matches the hard-capped one; the curve is
+AUC-neutral on the 66-repo corpus.
+
 `hidden_coupling` is advisory: still detected, stored and listed, it deducts
 nothing. On its own it ranks defect-prone files near chance (AUC about 0.55), and
 a pre-registered test on 12 repositories no earlier health study used found the

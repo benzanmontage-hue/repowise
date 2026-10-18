@@ -17,6 +17,7 @@ still pins the whole algorithm.
 
 from __future__ import annotations
 
+import math
 from dataclasses import replace
 
 import pytest
@@ -52,6 +53,8 @@ _HISTORY_CAP_BASE = 1.0
 _HISTORY_CAP_PER_STRUCTURE = 1.0
 # History de-stacking: the largest history finding whole, the rest at this share.
 _HISTORY_STACK_SHARE = 0.25
+# Every other category saturates toward this multiple of its cap.
+_SATURATION = 3.09
 
 _LEGACY_SEVERITY_DEDUCTION = {
     Severity.LOW: 0.3,
@@ -140,17 +143,18 @@ def _legacy_score_file(results: list[BiomarkerResult]) -> float:
         top = max(history)
         raw["organizational"] = top + _HISTORY_STACK_SHARE * (sum(history) - top)
 
+    def saturated(cat: str, cat_sum: float) -> float:
+        ceiling = _SATURATION * _LEGACY_CATEGORY_CAPS.get(cat, 1.0)
+        return ceiling * (1.0 - math.exp(-cat_sum / ceiling))
+
     structure = sum(
-        min(cat_sum, _LEGACY_CATEGORY_CAPS.get(cat, 1.0))
-        for cat, cat_sum in raw.items()
-        if cat != "organizational"
+        saturated(cat, cat_sum) for cat, cat_sum in raw.items() if cat != "organizational"
     )
-    total = 0.0
-    for cat, cat_sum in raw.items():
-        cap = _LEGACY_CATEGORY_CAPS.get(cat, 1.0)
-        if cat == "organizational":
-            cap = min(cap, _HISTORY_CAP_BASE + _HISTORY_CAP_PER_STRUCTURE * structure)
-        total += min(cat_sum, cap)
+    history_cap = min(
+        _LEGACY_CATEGORY_CAPS["organizational"],
+        _HISTORY_CAP_BASE + _HISTORY_CAP_PER_STRUCTURE * structure,
+    )
+    total = structure + min(raw.get("organizational", 0.0), history_cap)
     return max(1.0, min(10.0, 10.0 - total))
 
 
@@ -199,10 +203,10 @@ _FIXTURES: list[list[BiomarkerResult]] = [
 
 
 def test_defect_dimension_matches_legacy_golden():
-    """THE GATE: scores["defect"] == the frozen pre-split score for every fixture."""
+    """THE GATE: scores["defect"] == the frozen reference score for every fixture (to float rounding)."""
     for fixture in _FIXTURES:
         scores, _ = score_file(fixture)
-        assert scores["defect"] == _legacy_score_file(fixture)
+        assert scores["defect"] == pytest.approx(_legacy_score_file(fixture), abs=1e-9)
 
 
 # The widened maintainability pillar, pinned per fixture. Maintainability is
@@ -356,8 +360,8 @@ def test_floored_smell_is_full_weight_in_maintainability():
     """low_cohesion is floored to 0.5 in defect but full (1.0) in maintainability."""
     findings = [_r("low_cohesion", Severity.CRITICAL)]
     scores, _ = score_file(findings)
-    # defect: 2.0 * 0.5 = 1.0 -> 9.0
-    assert scores["defect"] == 9.0
+    # defect: 2.0 * 0.5 = 1.0, saturated to 0.938
+    assert round(scores["defect"], 3) == 9.062
     # maintainability: 2.0 * 1.0 = 2.0 in structural_complexity (cap 4.0) -> 8.0
     assert scores["maintainability"] == 8.0
 

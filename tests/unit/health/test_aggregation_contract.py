@@ -246,14 +246,18 @@ def test_the_breakdown_reproduces_the_score_from_stored_impact() -> None:
     assert out["categories"][0]["applied_deduction"] == 2.25
 
 
-def test_a_capped_category_is_flagged_and_holds_its_applied_total() -> None:
+def test_a_curved_category_reports_its_ceiling_and_is_never_held_at_it() -> None:
+    """Code categories saturate toward 3.09 x their cap, so none sits at a ceiling."""
+    from repowise.core.analysis.health.shape_curve import ceiling
+
     biomarker = _category_biomarker("structural_complexity")
     cap = CATEGORY_CAPS["structural_complexity"]
     findings = [_Finding(biomarker, severity="critical", health_impact=cap / 4) for _ in range(4)]
     category = score_breakdown(findings)["categories"][0]
     assert category["applied_deduction"] == pytest.approx(cap)
     assert category["raw_deduction"] > cap
-    assert category["capped"] is True
+    assert category["cap"] == round(ceiling(cap), 2)
+    assert category["capped"] is False
 
 
 def test_the_history_category_reports_the_cap_it_was_scored_under() -> None:

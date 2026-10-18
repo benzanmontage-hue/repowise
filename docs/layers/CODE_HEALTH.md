@@ -54,7 +54,10 @@ counted in full in maintainability.
 ## Reading the score
 
 Each file starts at 10. Every finding deducts its severity times its marker
-weight, deductions are capped per category, and the result is clamped to 1-10.
+weight, deductions are bounded per category, and the result is clamped to 1-10.
+Code categories bend toward their bound rather than stopping at it, so shrinking a
+critical function raises the score even while it stays critical, and several findings on one
+function count mostly once.
 
 | Band | Score | Meaning |
 |---|---|---|
