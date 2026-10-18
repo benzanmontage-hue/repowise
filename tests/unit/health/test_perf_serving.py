@@ -20,6 +20,7 @@ from repowise.core.analysis.health.perf.serving import (
     PerformanceQuery,
     facet_counts,
     fold_facets,
+    fold_scoped_facets,
     intervention_file,
     keep,
     parse_query,
@@ -349,3 +350,84 @@ async def test_an_unjudged_store_reads_the_default_queue_rule_live(store) -> Non
     await session.commit()
     live = [i["opportunity_id"] for i in (await service.page(parse_query()[0])).items]
     assert live == judged == ["perf_0"]
+
+
+_SCOPES = [
+    # Worth doing now: the stored default-queue verdict.
+    {},
+    {"queue": True, "actionability": "advisory"},
+    # All production causes, every state, proof and role.
+    {"actionability": "all", "proof": "all", "role": "all"},
+    # Everything.
+    {"context": "all", "actionability": "all", "proof": "all", "role": "all"},
+    {"context": "all", "actionability": "all", "proof": "all", "role": "all", "boundary": "db"},
+    {"context": "test", "actionability": "all", "proof": "all", "role": "all"},
+]
+
+#: Facet name and the query attribute that narrows it.
+_OWN = {
+    "context": "context",
+    "boundary": "boundary",
+    "confidence": "confidence",
+    "actionability": "actionability",
+    "proof": "proof",
+    "role": "role",
+}
+
+
+@pytest.mark.parametrize("args", _SCOPES)
+async def test_scoped_facets_sum_to_the_rows_the_scope_returns(store, args) -> None:
+    """Every number the dashboard shows sits inside its scope: a facet with no
+    own selection sums to the query's total, and a selected value equals it."""
+    from repowise.core.persistence.crud.analysis.performance import (
+        list_performance_opportunities,
+        performance_facet_counts,
+    )
+
+    session, repository_id = store
+    query, ignored = parse_query(**args, limit=100)
+    assert not ignored
+    _, total = await list_performance_opportunities(
+        session, repository_id, **query.store_filters(), sort=query.sort, limit=100
+    )
+    grouped = await performance_facet_counts(session, repository_id, scoped=True)
+    facets = fold_scoped_facets(grouped, query)
+    assert "queue" not in facets
+    for name, attribute in _OWN.items():
+        counts = {entry["value"]: entry["total"] for entry in facets[name]}
+        chosen = getattr(query, attribute)
+        if chosen in (None, "all"):
+            assert sum(counts.values()) == total, name
+        else:
+            assert counts.get(chosen, 0) == total, name
+
+
+def test_all_lifts_the_default_state_and_proof() -> None:
+    query, ignored = parse_query(actionability="all", proof="all", role="all")
+    assert not ignored
+    assert (query.actionabilities, query.proofs, query.roles) == (None, None, None)
+    assert query.queue_eligible is None
+    held, _ = parse_query(queue=True, actionability="investigate")
+    assert held.queue_eligible is True
+    assert held.actionabilities == {"investigate"}
+
+
+async def test_scope_counts_equal_what_each_scope_lists(store) -> None:
+    """The scope control's numbers are the totals its scopes return."""
+    from repowise.core.analysis.health.perf.serving import SCOPES, scope_counts
+    from repowise.core.persistence.crud.analysis.performance import (
+        list_performance_opportunities,
+        performance_facet_counts,
+    )
+
+    session, repository_id = store
+    grouped = await performance_facet_counts(session, repository_id, scoped=True)
+    counts = scope_counts(grouped)
+    assert set(counts) == {"now", "production", "all"}
+    for name, args in SCOPES.items():
+        query, _ = parse_query(**args, limit=100)
+        _, total = await list_performance_opportunities(
+            session, repository_id, **query.store_filters(), sort=query.sort, limit=100
+        )
+        assert counts[name] == total, name
+    assert counts["now"] <= counts["production"] <= counts["all"]

@@ -85,6 +85,13 @@ async def list_performance_opportunities(
             "tooling and test, whose loops run once per process."
         ),
     ),
+    queue: bool = Query(
+        False,
+        description=(
+            "Keep to the default queue's stored verdict whatever state is chosen, "
+            "so a state picked inside 'worth doing now' stays inside it."
+        ),
+    ),
     view: str = Query("detail"),
     sort: str = Query("rank"),
     file_paths: str | None = Query(
@@ -116,6 +123,7 @@ async def list_performance_opportunities(
         file_paths=_paths(file_paths),
         limit=limit,
         offset=offset,
+        queue=queue,
     )
     page = await _service(session, repo_id, include_unverified=include_unverified).page(
         query,
@@ -124,6 +132,8 @@ async def list_performance_opportunities(
         with_summary=True,
         # The tab acts on summary rows, so they carry fix, gain and effort.
         row_decisions=True,
+        # Every count the tab shows sits inside the scope it asked for.
+        scoped_facets=True,
     )
     return {
         "items": label_previews(
@@ -136,6 +146,7 @@ async def list_performance_opportunities(
         "summary": page.summary,
         "counts": page.counts,
         "gated": page.gated,
+        "scopes": page.scopes,
         **({"ignored_arguments": ignored} if ignored else {}),
     }
 

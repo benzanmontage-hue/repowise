@@ -627,7 +627,8 @@ async def performance_facet_counts(
     *,
     file_paths: tuple[str, ...] | None = None,
     include_unverified: bool = False,
-) -> list[tuple[str, str | None, str, str, str, str, str, int]]:
+    scoped: bool = False,
+) -> list[tuple[Any, ...]]:
     """Grouped counts over every open opportunity, in one aggregate statement.
 
     Returned pre-aggregation, one ``(*FACET_FIELDS, count)`` tuple per group,
@@ -635,9 +636,11 @@ async def performance_facet_counts(
     with every filter applied *except* its own, or choosing one value would
     erase the alternatives.
     """
-    from ....analysis.health.perf.serving import FACET_FIELDS
+    from ....analysis.health.perf.serving import FACET_FIELDS, SCOPED_GROUP_FIELDS
 
-    columns = tuple(getattr(PerformanceOpportunity, name) for name in FACET_FIELDS)
+    # ``scoped`` also groups by the stored queue verdict, for scope-aware facets.
+    fields = SCOPED_GROUP_FIELDS if scoped else FACET_FIELDS
+    columns = tuple(getattr(PerformanceOpportunity, name) for name in fields)
     result = await session.execute(
         select(*columns, func.count())
         .where(

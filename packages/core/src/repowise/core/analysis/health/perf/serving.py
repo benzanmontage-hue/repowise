@@ -69,6 +69,9 @@ BOUNDARIES = ("db", "network", "filesystem", "subprocess", "lock", NULL_VALUE)
 ROLES = (*EXECUTION_ROLES, "all")
 """One execution role, or ``all``. Absent means the roles the default queue holds."""
 
+ANY = "all"
+"""Asks for every state or every proof, where absence means the default queue's."""
+
 DEFAULT_ACTIONABILITIES = DEFAULT_QUEUE_STATES
 """``expected`` rows offer nothing to change and ``investigate`` rows no strategy to apply,
 so both are asked for, not queued. The summary's ``default_queue`` counts each one left out."""
@@ -139,6 +142,12 @@ FACETS: tuple[Facet, ...] = (
 )
 FACET_FIELDS = tuple(column for _, column, _ in FACETS)
 
+#: The stored default-queue verdict, grouped beside the facet fields so a
+#: scope's facets can be counted inside the scope (:func:`fold_scoped_facets`).
+#: Never emitted as a facet of its own.
+_QUEUE_FACET: Facet = ("queue", "queue_eligible", "queue_eligible")
+SCOPED_GROUP_FIELDS = (*FACET_FIELDS, "queue_eligible")
+
 
 def sort_keys(sort: str | None) -> SortKeys:
     """The keys for *sort*; an unknown sort reads as rank."""
@@ -163,11 +172,69 @@ def _facet_selection(query: PerformanceQuery) -> dict[str, Any]:
         "boundary": query.boundary,
         "confidence": query.confidence,
         "actionabilities": (
-            None if query.actionability is None else frozenset({query.actionability})
+            None if query.actionability in (None, ANY) else frozenset({query.actionability})
         ),
-        "proofs": None if query.proof is None else frozenset({query.proof}),
+        "proofs": None if query.proof in (None, ANY) else frozenset({query.proof}),
         "roles": None if query.role in (None, "all") else frozenset({query.role}),
     }
+
+
+def _as_counts(folded: dict[str, dict[str, int]]) -> dict[str, list[dict[str, Any]]]:
+    return {
+        name: [
+            {"value": value, "total": total}
+            for value, total in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+        ]
+        for name, counts in folded.items()
+    }
+
+
+def fold_scoped_facets(
+    groups: Iterable[Sequence[Any]], query: PerformanceQuery, *, judged: bool = True
+) -> dict[str, list[dict[str, Any]]]:
+    """Facets counted inside the query's scope: every filter the store applies
+    (the default queue's states, proof, role and stored verdict included)
+    narrows every facet but its own, so a facet's values sum to the rows the
+    query returns once that facet's own filter is lifted.
+
+    *groups* are ``(*SCOPED_GROUP_FIELDS, count)``. Used by the dashboard;
+    the agent surface keeps :func:`fold_facets`.
+    """
+    selection = {
+        key: value
+        for key, value in query.store_filters(judged=judged).items()
+        if key != "file_paths"
+    }
+    folded = queue_rules.fold_facets(
+        groups,
+        (*FACETS, _QUEUE_FACET),
+        rules=FILTERS,
+        selection=selection,
+        null=NULL_VALUE,
+    )
+    folded.pop(_QUEUE_FACET[0], None)
+    return _as_counts(folded)
+
+
+#: The dashboard's three scopes, as the queries that list them: the default
+#: queue, every production cause, and everything.
+SCOPES: dict[str, dict[str, Any]] = {
+    "now": {},
+    "production": {"actionability": ANY, "proof": ANY, "role": "all"},
+    "all": {"context": "all", "actionability": ANY, "proof": ANY, "role": "all"},
+}
+
+
+def scope_counts(groups: Iterable[Sequence[Any]], *, judged: bool = True) -> dict[str, int]:
+    """How many causes each scope holds, unfiltered, from the same
+    ``(*SCOPED_GROUP_FIELDS, count)`` groups the scoped facets fold."""
+    rows = [dict(zip((*SCOPED_GROUP_FIELDS, "count"), group, strict=True)) for group in groups]
+    counts: dict[str, int] = {}
+    for name, args in SCOPES.items():
+        query, _ = parse_query(**args)
+        params = {k: v for k, v in query.store_filters(judged=judged).items() if k != "file_paths"}
+        counts[name] = sum(int(row["count"]) for row in rows if keep(row, params))
+    return counts
 
 
 def fold_facets(
@@ -178,13 +245,7 @@ def fold_facets(
     folded = queue_rules.fold_facets(
         groups, FACETS, rules=FILTERS, selection=_facet_selection(query), null=NULL_VALUE
     )
-    return {
-        name: [
-            {"value": value, "total": total}
-            for value, total in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
-        ]
-        for name, counts in folded.items()
-    }
+    return _as_counts(folded)
 
 
 def facet_counts(rows: Iterable[Any], query: PerformanceQuery) -> dict[str, list[dict[str, Any]]]:
@@ -221,6 +282,9 @@ class PerformanceQuery:
     file_paths: tuple[str, ...] | None = None
     limit: int = 20
     offset: int = 0
+    #: Keep to the stored default-queue verdict whatever else is chosen, so a
+    #: state picked inside "worth doing now" stays inside it.
+    queue: bool = False
 
     @property
     def status(self) -> str:
@@ -246,18 +310,20 @@ class PerformanceQuery:
 
     @property
     def queue_eligible(self) -> bool | None:
-        return True if self.default_queue else None
+        return True if self.default_queue or self.queue else None
 
     def store_filters(self, *, judged: bool = True) -> dict[str, Any]:
         """The store's filter arguments. On a store whose causes are not all
         judged (``judged=False``), the default queue reads its rule live:
         the default states and proof instead of the stored verdict."""
-        live = self.default_queue and not judged
+        live = (self.default_queue or self.queue) and not judged
         return {
             "contexts": self.contexts,
             "boundary": self.boundary,
             "confidence": self.confidence,
-            "actionabilities": DEFAULT_ACTIONABILITIES if live else self.actionabilities,
+            "actionabilities": (self.actionabilities or DEFAULT_ACTIONABILITIES)
+            if live
+            else self.actionabilities,
             "proofs": DEFAULT_QUEUE_PROOFS if live else self.proofs,
             "roles": QUEUE_ROLES if live else self.roles,
             "queue_eligible": None if live else self.queue_eligible,
@@ -268,7 +334,7 @@ class PerformanceQuery:
     def actionabilities(self) -> frozenset[str] | None:
         """One explicit state; else, under another context, the default
         queue states (plan_ready, advisory). ``None`` for the default queue."""
-        if self.default_queue:
+        if self.default_queue or self.actionability == ANY:
             return None
         if self.actionability is None:
             return DEFAULT_ACTIONABILITIES
@@ -280,7 +346,7 @@ class PerformanceQuery:
         the measured causes, so every surface lists what the default queue
         counts. ``None`` for the default queue. The ``proof`` facet says how
         many unproven ones sit one filter away."""
-        if self.default_queue:
+        if self.default_queue or self.proof == ANY:
             return None
         if self.proof is None:
             return DEFAULT_QUEUE_PROOFS
@@ -325,6 +391,7 @@ def parse_query(
     file_paths: tuple[str, ...] | None = None,
     limit: int = 20,
     offset: int = 0,
+    queue: bool = False,
 ) -> tuple[PerformanceQuery, dict[str, str]]:
     """Normalize caller input, reporting anything unrecognized by name.
 
@@ -348,14 +415,17 @@ def parse_query(
             context=resolved_context,
             boundary=pick("performance_boundary", boundary, BOUNDARIES),
             confidence=pick("performance_confidence", confidence, CONFIDENCES),
-            actionability=pick("performance_actionability", actionability, ACTIONABILITIES),
-            proof=pick("performance_proof", proof, QUEUE_PROOFS),
+            actionability=pick(
+                "performance_actionability", actionability, (*ACTIONABILITIES, ANY)
+            ),
+            proof=pick("performance_proof", proof, (*QUEUE_PROOFS, ANY)),
             role=pick("performance_role", role, ROLES),
             view=pick("performance_view", view, CANONICAL_VIEWS) or "detail",
             sort=pick("performance_sort", sort, CANONICAL_SORTS) or DEFAULT_SORT,
             file_paths=file_paths,
             limit=max(0, limit),
             offset=max(0, offset),
+            queue=queue,
         ),
         ignored,
     )
@@ -647,6 +717,7 @@ __all__ = [
     "FILTERS",
     "PLAN_REASONS",
     "ROLES",
+    "SCOPES",
     "SORTS",
     "SUMMARY_UNAVAILABLE",
     "PerformanceContext",
@@ -655,6 +726,7 @@ __all__ = [
     "evidence_payload",
     "facet_counts",
     "fold_facets",
+    "fold_scoped_facets",
     "gain_text",
     "intervention_file",
     "keep",
@@ -663,6 +735,7 @@ __all__ = [
     "plan_link",
     "rescope_summary",
     "row_sort_key",
+    "scope_counts",
     "serialize",
     "sort_keys",
     "summary_payload",
