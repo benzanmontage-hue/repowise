@@ -297,6 +297,35 @@ async def test_list_and_profile_carry_kind_and_merged_identities(client: AsyncCl
 
 
 @pytest.mark.asyncio
+async def test_list_owners_filters_by_kind(client: AsyncClient, app) -> None:
+    repo = await create_test_repo(client)
+    await _seed(app.state.session_factory, repo["id"])
+    bot = {"name": "dependabot[bot]", "email": "49699333+dependabot[bot]@users.noreply.github.com"}
+    async with get_session(app.state.session_factory) as session:
+        await crud.upsert_git_metadata(
+            session,
+            repository_id=repo["id"],
+            file_path="requirements.txt",
+            commit_count_total=4,
+            primary_owner_name=bot["name"],
+            primary_owner_email=bot["email"],
+            top_authors_json=json.dumps([{**bot, "commit_count": 4}]),
+            bus_factor=1,
+            contributor_count=1,
+        )
+
+    url = f"/api/repos/{repo['id']}/owners"
+    every = (await client.get(url)).json()
+    people = (await client.get(url, params={"kind": "human"})).json()
+    bots = (await client.get(url, params={"kind": "bot"})).json()
+    assert {i["kind"] for i in every["items"]} == {"human", "bot"}
+    assert {i["kind"] for i in people["items"]} == {"human"}
+    assert people["total"] == every["total"] - bots["total"]
+    assert [i["name"] for i in bots["items"]] == ["dependabot[bot]"]
+    assert (await client.get(url, params={"kind": "robot"})).status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_owners_summary(client: AsyncClient, app) -> None:
     repo = await create_test_repo(client)
     await _seed(app.state.session_factory, repo["id"])

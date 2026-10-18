@@ -24,6 +24,7 @@ from repowise.server.schemas import (
     OwnersSummaryResponse,
     Paginated,
 )
+from repowise.server.schemas.ownership import IdentityKindField
 from repowise.server.services.owner_profile import (
     _OwnerAccumulator,
     aggregate_owners,
@@ -157,6 +158,9 @@ async def list_owners(
         "files_owned",
         description="One of: files_owned, hotspots_owned, commit_count_90d, dead_code_lines_owned, bus_factor_risk_files",
     ),
+    kind: IdentityKindField | None = Query(
+        None, description="Only this kind of identity; omitted lists every kind"
+    ),
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
     session: AsyncSession = Depends(get_db_session),
@@ -164,7 +168,11 @@ async def list_owners(
     """Directory of contributors with rollup stats — engineering-leader view."""
 
     accs, module_totals = await aggregate_owners(session, repo_id)
-    entries = [_to_list_entry(a, module_totals) for a in accs.values() if a.key]
+    entries = [
+        _to_list_entry(a, module_totals)
+        for a in accs.values()
+        if a.key and (kind is None or a.kind == kind)
+    ]
 
     if q:
         needle = q.lower()

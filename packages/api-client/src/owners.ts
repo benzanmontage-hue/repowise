@@ -1,4 +1,4 @@
-import type { KnowledgeMatrix, OwnersSummary } from "@repowise-dev/types/owners";
+import type { IdentityKind, KnowledgeMatrix, OwnersSummary } from "@repowise-dev/types/owners";
 import { apiGet } from "./client";
 import { fetchAllPaginated } from "./pagination";
 import type {
@@ -18,6 +18,8 @@ export interface ListOwnersParams {
   repoId: string;
   q?: string;
   sort?: OwnerSortKey;
+  /** Only this kind of identity; omitted lists every kind. */
+  kind?: IdentityKind;
   limit?: number;
   offset?: number;
 }
