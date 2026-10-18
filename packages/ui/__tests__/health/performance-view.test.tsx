@@ -133,7 +133,7 @@ describe("PerformanceView queue", () => {
     await rows();
     const areas = screen.getAllByRole("region").map((node) => node.getAttribute("aria-label"));
     expect(areas.filter((a) => a?.startsWith("pkg/"))).toEqual(["pkg/b, 1 causes", "pkg/a, 1 causes"]);
-    expect(screen.getAllByRole("button", { name: "Copy prompt for these 1" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Copy prompt for this one" })).toHaveLength(2);
     expect(screen.getByText("Concentrated in 2 areas, led by pkg/b.")).toBeTruthy();
   });
 
