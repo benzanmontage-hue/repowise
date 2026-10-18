@@ -1,0 +1,44 @@
+"use client";
+
+import { useMemo } from "react";
+import { useTranslations } from "next-intl";
+import type { AreaRailLabels } from "@repowise-dev/ui/health";
+
+/** The area rail's copy from the catalog. */
+export function useAreaRailLabels(): AreaRailLabels {
+  const t = useTranslations("views.codeHealth.areaRail");
+  return useMemo<AreaRailLabels>(
+    () => ({
+      repository: t("repository"),
+      repoEyebrow: t("repoEyebrow"),
+      areaEyebrow: t("areaEyebrow"),
+      files: (count) => t("files", { count }),
+      deltaWindow: (delta, days) => t("deltaWindow", { delta, days }),
+      improved: (delta, days) => t("improved", { delta, days }),
+      noDelta: t("noDelta"),
+      needsAttention: t("needsAttention"),
+      subAreas: t("subAreas"),
+      improvedMost: t("improvedMost"),
+      worstFiles: t("worstFiles"),
+      hotspots: (count) => t("hotspots", { count }),
+      owners: t("owners"),
+      ownerShare: (name, pct) => t("ownerShare", { name, pct }),
+      busFactorOne: (count) => t("busFactorOne", { count }),
+      coverage: t("coverage"),
+      noCoverage: t("noCoverage"),
+      coverageLine: (pct, files) => t("coverageLine", { pct, files }),
+      topFindings: t("topFindings"),
+      noFindings: t("noFindings"),
+      allClean: (count) => t("allClean", { count }),
+      promptTitle: t("promptTitle"),
+      promptDescription: t("promptDescription"),
+      findingsLink: t("findingsLink"),
+      fixFirstLink: t("fixFirstLink"),
+      contributorsLink: t("contributorsLink"),
+      backToArea: (name) => t("backToArea", { name }),
+      loading: t("loading"),
+      loadError: t("loadError"),
+    }),
+    [t],
+  );
+}
