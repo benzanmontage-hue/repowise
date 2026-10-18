@@ -65,6 +65,12 @@ export {
   type CommitPromptInput,
 } from "./ai-prompts/commit-prompt";
 export {
+  buildChangeAiPrompt,
+  type BuildChangePromptOptions,
+  type ChangePromptFinding,
+  type ChangePromptInput,
+} from "./ai-prompts/change-prompt";
+export {
   buildPerformanceOpportunityPrompt,
   buildRefactoringOpportunityPrompt,
   buildRefactoringPlanPrompt,

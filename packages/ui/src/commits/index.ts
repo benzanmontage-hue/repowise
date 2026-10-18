@@ -11,3 +11,6 @@ export * from "./agent-trend-strip";
 export * from "./commit-risk-histogram";
 export * from "./commit-risk-scatter";
 export * from "./commit-distribution";
+export * from "./commit-files-table";
+export * from "./health-delta";
+export * from "./health-delta-mark";
