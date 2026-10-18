@@ -103,6 +103,9 @@ log = structlog.get_logger(__name__)
 # declarators and Kotlin lists; cached walks refresh the total, typed and scalar
 # counts, enabling primitive_obsession in those languages.
 # History findings de-stack before the history cap (``scoring.destacked``).
+# Defect code categories saturate instead of stopping at their cap, findings on
+# one function group, and critical size findings scale past their threshold
+# (``shape_curve``).
 #
 # v40: an Extract Method plan names its helper with a placeholder
 # (``extracted_helper``, numbered when taken in scope) and asks the agent applying
