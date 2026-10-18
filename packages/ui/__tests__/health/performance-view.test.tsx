@@ -1034,6 +1034,32 @@ describe("PerformanceView compatibility", () => {
     expect(await screen.findByRole("button", { name: "Remove filter Showing: Advisory" })).toBeTruthy();
     expect(screen.getAllByRole("listitem").filter((li) => li.hasAttribute("data-performance-opportunity"))).toHaveLength(1);
   });
+
+  it("follows a URL it did not write while it stays mounted", async () => {
+    const load = vi.fn(async () => page());
+    const a = adapter({ getPerformanceOpportunities: load });
+    const view = (search: string) => (
+      <PerformanceView adapter={a} initialFilters={search} onFiltersChange={() => undefined} />
+    );
+    const { rerender } = render(view("ctx=test&boundary=db"));
+    await rows();
+    fireEvent.click(screen.getByRole("tab", { name: /Production 4/ }));
+    // The host echoes the view's own write beside its own parameters.
+    rerender(view("tab=performance&ctx=production&boundary=db"));
+    await waitFor(() =>
+      expect(load).toHaveBeenLastCalledWith(
+        expect.objectContaining({ context: "production", boundary: "db" }),
+      ),
+    );
+    // A link followed (or back) replaces the state.
+    rerender(view("tab=performance&ctx=all&proof=unproven"));
+    await waitFor(() =>
+      expect(load).toHaveBeenLastCalledWith(
+        expect.objectContaining({ context: "all", proof: "unproven" }),
+      ),
+    );
+    expect(load).not.toHaveBeenLastCalledWith(expect.objectContaining({ boundary: "db" }));
+  });
 });
 
 describe("PerformanceView accessibility", () => {

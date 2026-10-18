@@ -1,6 +1,6 @@
 "use client";
 
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import type { PerformanceOpportunity } from "@repowise-dev/types/health";
 
 import { PaginationControls } from "../shared/pagination-controls";
@@ -33,7 +33,6 @@ import {
   NARROWING_KEYS,
   narrowingCount,
   PAGE_SIZE,
-  parseLegacyFilters,
   readFilters,
   withFilter,
   withFilters,
@@ -52,6 +51,7 @@ import {
   StaleModelNotice,
   UnavailableQueue,
 } from "./performance/states";
+import { usePerformanceFilters } from "./performance/use-filters";
 import { usePerformanceQueue } from "./performance/use-queue";
 import { PerformanceVerdict, verdictOf } from "./performance/verdict";
 
@@ -68,16 +68,6 @@ export type { PerformanceViewAdapter, PerformanceFilterState };
 export { readFilters as readPerformanceFilters, writeFilters as writePerformanceFilters };
 
 const OpportunityDrawer = lazy(() => import("./performance/drawer"));
-
-/** A host string is the flat parameters, or a link minted before them. */
-function initialState(initial: string | undefined): PerformanceFilterState {
-  if (!initial) return INITIAL_FILTERS;
-  const params = new URLSearchParams(initial);
-  // A host that predates the flat schema hands over the blob itself.
-  return params.has("context") && !params.has("ctx")
-    ? parseLegacyFilters(initial)
-    : readFilters(params);
-}
 
 export function PerformanceView({
   adapter,
@@ -100,23 +90,7 @@ export function PerformanceView({
   /** Called with the open cause's id, or null when the drawer closes. */
   onOpenOpportunityChange?: ((opportunityId: string | null) => void) | undefined;
 }) {
-  const [filters, setFilters] = useState(() => initialState(initialFilters));
-  // Read through a ref so two changes in one tick compose, and so callbacks
-  // handed to memoized cards need not change with every filter.
-  const current = useRef(filters);
-  current.current = filters;
-  const apply = useCallback(
-    (next: PerformanceFilterState) => {
-      current.current = next;
-      setFilters(next);
-      if (onFiltersChange) {
-        const params = new URLSearchParams();
-        writeFilters(next, params);
-        onFiltersChange(params.toString(), next);
-      }
-    },
-    [onFiltersChange],
-  );
+  const { filters, current, apply } = usePerformanceFilters(initialFilters, onFiltersChange);
 
   const { data, error, isLoading, mutate, capabilities, supported } = usePerformanceQueue(
     adapter,
