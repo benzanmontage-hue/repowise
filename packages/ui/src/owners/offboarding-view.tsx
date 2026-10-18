@@ -4,7 +4,7 @@ import * as React from "react";
 import type { KnowledgeMatrix } from "@repowise-dev/types/owners";
 import { Slider } from "../ui/slider";
 import { personAt, type KnowledgePerson } from "./knowledge-files";
-import { simulateOffboarding } from "./offboarding";
+import { OFFBOARDING_THRESHOLD_RANGE, simulateOffboarding } from "./offboarding";
 import { OffboardingResultView } from "./offboarding-result";
 import { PeoplePicker } from "./people-picker";
 
@@ -91,9 +91,9 @@ export function OffboardingView({
           </span>
           <Slider
             aria-labelledby="offboarding-threshold"
-            min={10}
-            max={90}
-            step={5}
+            min={OFFBOARDING_THRESHOLD_RANGE.min}
+            max={OFFBOARDING_THRESHOLD_RANGE.max}
+            step={OFFBOARDING_THRESHOLD_RANGE.step}
             value={[draft]}
             onValueChange={([v]) => v != null && setDraft(v)}
             onValueCommit={([v]) => v != null && onScenarioChange({ ...scenario, threshold: v / 100 })}

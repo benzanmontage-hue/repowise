@@ -115,8 +115,8 @@ export function PeoplePicker({
             setActive(0);
           }}
           onFocus={() => setOpen(true)}
-          // Delay so a click on an option lands before the list closes.
-          onBlur={() => setTimeout(() => setOpen(false), 120)}
+          // Options cancel mousedown, so a click on one never blurs the field first.
+          onBlur={() => setOpen(false)}
           onKeyDown={onKeyDown}
         />
         {open && options.length > 0 && (

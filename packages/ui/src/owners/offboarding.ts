@@ -170,10 +170,19 @@ export function parseLeaveParam(raw: string | null | undefined): string[] {
   return Array.from(new Set(keys));
 }
 
-/** Whole percent in the URL, 1 to 100; anything else falls back to the default. */
+/** The thresholds the page offers, in whole percent. */
+export const OFFBOARDING_THRESHOLD_RANGE = { min: 10, max: 90, step: 5 } as const;
+
+/**
+ * Whole percent in the URL, clamped to the offered range so a hand-edited
+ * link never shows a figure the slider cannot; anything unparsable falls
+ * back to the default.
+ */
 export function parseThresholdParam(raw: string | null | undefined): number {
   const n = raw == null || raw === "" ? NaN : Number(raw);
-  return Number.isInteger(n) && n >= 1 && n <= 100 ? n / 100 : DEFAULT_OFFBOARDING_THRESHOLD;
+  if (!Number.isInteger(n)) return DEFAULT_OFFBOARDING_THRESHOLD;
+  const { min, max } = OFFBOARDING_THRESHOLD_RANGE;
+  return Math.min(max, Math.max(min, n)) / 100;
 }
 
 export function formatThresholdParam(threshold: number): string {

@@ -124,11 +124,11 @@ function QuietOwnerRow({
           <p className="text-xs leading-relaxed text-[var(--color-text-secondary)] [text-wrap:pretty]">
             {last ? `Last commit ${last}. ` : ""}
             {owner.files_owned === 1
-              ? "The one file they own changed lately; "
-              : `${owner.changing_files_owned.toLocaleString()} of the ${owner.files_owned.toLocaleString()} files they own changed lately; `}
+              ? "The one file they own changed lately. "
+              : `${owner.changing_files_owned.toLocaleString()} of the ${owner.files_owned.toLocaleString()} files they own changed lately. `}
             {totals.atRiskFiles > 0
-              ? `${totals.atRiskFiles.toLocaleString()} ${totals.atRiskFiles === 1 ? "has" : "have"} no majority author left${totals.severeFiles > 0 ? `, ${totals.severeFiles.toLocaleString()} of them hotspots or in weak health` : ""}.`
-              : `others hold the majority of ${owner.files_owned === 1 ? "it" : "every one of them"}.`}
+              ? `Without them, ${totals.atRiskFiles.toLocaleString()} ${totals.atRiskFiles === 1 ? "file has" : "files have"} no majority author left${totals.severeFiles > 0 ? `, ${totals.severeFiles.toLocaleString()} of them hotspots or in weak health` : ""}.`
+              : "The people who stay hold the majority of every file they worked on."}
           </p>
           <div className="mt-1 flex flex-wrap gap-x-4 text-xs">
             {totals.atRiskFiles > 0 && (

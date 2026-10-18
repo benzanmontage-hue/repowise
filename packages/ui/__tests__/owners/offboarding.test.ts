@@ -135,9 +135,11 @@ describe("URL params", () => {
     expect(parseLeaveParam("a,,a,b")).toEqual(["a", "b"]);
     expect(parseLeaveParam(null)).toEqual([]);
   });
-  it("accepts whole percents 1-100 and falls back otherwise", () => {
+  it("clamps whole percents to the offered range and falls back otherwise", () => {
     expect(parseThresholdParam("30")).toBe(0.3);
-    expect(parseThresholdParam("0")).toBe(DEFAULT_OFFBOARDING_THRESHOLD);
+    expect(parseThresholdParam("0")).toBe(0.1);
+    expect(parseThresholdParam("100")).toBe(0.9);
+    expect(parseThresholdParam("12.5")).toBe(DEFAULT_OFFBOARDING_THRESHOLD);
     expect(parseThresholdParam("abc")).toBe(DEFAULT_OFFBOARDING_THRESHOLD);
     expect(parseThresholdParam(null)).toBe(DEFAULT_OFFBOARDING_THRESHOLD);
     expect(formatThresholdParam(0.3)).toBe("30");

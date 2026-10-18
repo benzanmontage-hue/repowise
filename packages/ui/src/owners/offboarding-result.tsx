@@ -160,7 +160,7 @@ export function OffboardingResultView({
             ? `, ${totals.severeFiles.toLocaleString()} of them hotspots or in weak health`
             : ""}
           . {(totals.touchedFiles - totals.atRiskFiles).toLocaleString()} more carry some of their
-          history but keep a majority with the people who stay.
+          history but keep at least {threshold} with the people who stay.
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <AiPromptButton
