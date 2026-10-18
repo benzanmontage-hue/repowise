@@ -436,6 +436,13 @@
         "map": "地图"
       },
       "areaRail": {
+        "mapTitle": "代码健康地图",
+        "mapDescription": "每个文件夹是一个圆盘，大小代表代码行数，颜色由当前视角决定。放大后文件夹会展开为子文件夹，再展开为文件。点击文件夹打开它，点击文件在侧栏中查看。",
+        "flatMapDescription": "每个文件是一个节点，按文件夹分组，大小代表代码行数。切换视角只会重新着色，不会重新布局。点击文件夹放大，点击文件查看详情。",
+        "searchPlaceholder": "在地图中查找文件…",
+        "mapLoadError": "无法加载地图",
+        "mapAriaLabel": "代码健康地图，{lens} 视角。方向键在所选区域内的子区域和文件之间移动，回车打开，退格键返回上一级，Esc 返回仓库，加号和减号缩放。",
+        "promptAction": "复制前 {count} 个问题的提示词",
         "repository": "仓库",
         "repoEyebrow": "仓库",
         "areaEyebrow": "区域",

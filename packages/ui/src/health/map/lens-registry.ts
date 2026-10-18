@@ -7,6 +7,7 @@
  */
 
 import { healthBandMapFill, NODE_RAMP_STOP } from "../tokens";
+import { formatScore } from "@repowise-dev/types/health";
 import { EMPTY_AREA_INDEX, type AreaIndex } from "./areas";
 import { KNOWLEDGE_LENS, ownerLens, shareFill } from "./area-lenses";
 import {
@@ -61,7 +62,7 @@ export const OVERLAY_SPECS: Record<Exclude<CodeHealthOverlay, AreaLensId>, FileL
     caption: "disc = folder · size = lines of code · grey = not analysed",
     fill: (f) => scoreFill(f.score),
     areaFill: (a) => (a.band ? healthBandMapFill(a.band) : NEUTRAL_FILL),
-    areaText: (a) => (a.health == null ? null : a.health.toFixed(1)),
+    areaText: (a) => (a.health == null ? null : formatScore(a.health)),
     legend: [...BAND_LEGEND, { fill: NEUTRAL_FILL, label: HEALTH_UNSUPPORTED_LABEL }],
   },
   maintainability: {

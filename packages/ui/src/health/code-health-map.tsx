@@ -78,6 +78,8 @@ export { useAreaSource, type AreaFetchers, type AreaSource } from "./map/use-are
 
 /** What the root disc is called in the breadcrumb and the key. */
 const ROOT_LABEL = "Repository";
+const DEFAULT_ARIA_LABEL = (lens: string) =>
+  `Code health map, ${lens} lens. Arrow keys move between the areas and files inside the selected area, Enter opens one, Backspace goes up a level, Escape returns to the repository, plus and minus zoom.`;
 
 export interface CodeHealthMapProps {
   /** The flat file feed. Ignored when `source` is given. */
@@ -130,6 +132,8 @@ export interface CodeHealthMapProps {
   pending?: boolean;
   /** The root disc's name. */
   rootLabel?: string;
+  /** The canvas's accessible name and key help, for the active lens's label. */
+  ariaLabel?: (lens: string) => string;
 }
 
 /** The selected area, owned by the host when it passes `onAreaChange`, local otherwise. */
@@ -169,6 +173,7 @@ export function CodeHealthMap({
   onFindUndrawn,
   pending = false,
   rootLabel = ROOT_LABEL,
+  ariaLabel = DEFAULT_ARIA_LABEL,
 }: CodeHealthMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const baseRef = useRef<HTMLCanvasElement>(null);
@@ -305,7 +310,7 @@ export function CodeHealthMap({
           ref={keyboardRef}
           tabIndex={0}
           role="group"
-          aria-label={`Code health map, ${lens.label} lens. Arrow keys move between the areas and files inside the selected area, Enter opens one, Backspace goes up a level, Escape returns to the repository, plus and minus zoom.`}
+          aria-label={ariaLabel(lens.label)}
           onKeyDown={onKeyDown}
           // The cursor ring answers to keys, so it shows only for keyboard focus.
           onFocus={(e) => kb.setFocused(e.currentTarget.matches(":focus-visible"))}

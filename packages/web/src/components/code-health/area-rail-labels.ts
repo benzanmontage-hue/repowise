@@ -9,6 +9,13 @@ export function useAreaRailLabels(): AreaRailLabels {
   const t = useTranslations("views.codeHealth.areaRail");
   return useMemo<AreaRailLabels>(
     () => ({
+      mapTitle: t("mapTitle"),
+      mapDescription: t("mapDescription"),
+      flatMapDescription: t("flatMapDescription"),
+      searchPlaceholder: t("searchPlaceholder"),
+      mapLoadError: t("mapLoadError"),
+      mapAriaLabel: (lens) => t("mapAriaLabel", { lens }),
+      promptAction: (count) => t("promptAction", { count }),
       repository: t("repository"),
       repoEyebrow: t("repoEyebrow"),
       areaEyebrow: t("areaEyebrow"),

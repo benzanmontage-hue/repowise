@@ -5,7 +5,12 @@
  * cannot drift: both call the same spec.
  */
 
-import { HEALTH_BAND_LABEL, HEALTH_BAND_ORDER, HEALTH_BAND_RANGE_LABEL } from "@repowise-dev/types/health";
+import {
+  HEALTH_BAND_LABEL,
+  HEALTH_BAND_ORDER,
+  HEALTH_BAND_RANGE_LABEL,
+  formatScore,
+} from "@repowise-dev/types/health";
 import { NODE_HEALTHY_FILL, NODE_RAMP_STOP, healthBandMapFill, healthRampFill } from "../tokens";
 import type { AreaIndex, MapArea } from "./areas";
 import type { CodeHealthMapFile, PerformanceActionability } from "./types";
@@ -259,7 +264,7 @@ export function noFileScored(files: CodeHealthMapFile[]): boolean {
 
 /** A file's score at one decimal, or the unsupported label. */
 export function scoreText(f: CodeHealthMapFile): string {
-  return f.score == null ? HEALTH_UNSUPPORTED_LABEL : f.score.toFixed(1);
+  return f.score == null ? HEALTH_UNSUPPORTED_LABEL : formatScore(f.score);
 }
 
 /** One sentence a hover card or inspector can print about a file. */

@@ -1,5 +1,16 @@
-/** Every string the area rail renders, so a host can translate it. */
+/** Every string the area map section and its rail render, so a host can translate it. */
 export interface AreaRailLabels {
+  mapTitle: string;
+  /** Under the title, with the areas API (lazy hierarchy, rail). */
+  mapDescription: string;
+  /** Under the title, for a flat feed. */
+  flatMapDescription: string;
+  searchPlaceholder: string;
+  mapLoadError: string;
+  /** The canvas's accessible name and key help, for the active lens. */
+  mapAriaLabel: (lens: string) => string;
+  /** The rail's one filled action: what the N are. */
+  promptAction: (count: number) => string;
   repository: string;
   /** Eyebrow over the repository summary and over an area card. */
   repoEyebrow: string;
@@ -37,6 +48,16 @@ export interface AreaRailLabels {
 const s = (n: number, one: string, many: string) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
 export const DEFAULT_AREA_RAIL_LABELS: AreaRailLabels = {
+  mapTitle: "Code health map",
+  mapDescription:
+    "Every folder is a disc sized by lines of code and coloured by the lens. Zoom in and folders open into their sub-folders, then their files. Click a folder to open it, a file to read it in the rail.",
+  flatMapDescription:
+    "Every file as a node, grouped into its folders and sized by lines of code. The lens re-marks the same field rather than redrawing it. Click a folder to zoom, a file to inspect it.",
+  searchPlaceholder: "Find a file in the map…",
+  mapLoadError: "Couldn't load the map",
+  mapAriaLabel: (lens) =>
+    `Code health map, ${lens} lens. Arrow keys move between the areas and files inside the selected area, Enter opens one, Backspace goes up a level, Escape returns to the repository, plus and minus zoom.`,
+  promptAction: (n) => (n === 1 ? "Copy prompt for the top finding" : `Copy prompt for the top ${n.toLocaleString()} findings`),
   repository: "Repository",
   repoEyebrow: "Repository",
   areaEyebrow: "Area",

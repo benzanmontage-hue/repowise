@@ -62,7 +62,8 @@ export interface AreaMapSectionProps {
   /** Per-file signals the host joins onto the loaded rows (e.g. churn). */
   fileExtras?: ReadonlyMap<string, Partial<CodeHealthMapFile>> | undefined;
   railLabels?: Partial<AreaRailLabels> | undefined;
-  description: string;
+  /** Overrides the labels' description for this host. */
+  description?: string | undefined;
 }
 
 /** The areas fetchers, stable across renders: most hosts rebuild the adapter every render. */
@@ -82,7 +83,7 @@ function useFetchers(adapter: CodeHealthAdapter): AreaFetchers | null {
   );
 }
 
-function SearchBox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function SearchBox({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
   return (
     <div className="relative">
       <Search
@@ -93,8 +94,8 @@ function SearchBox({ value, onChange }: { value: string; onChange: (v: string) =
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Find a file in the map…"
-        aria-label="Find a file in the map"
+        placeholder={label}
+        aria-label={label}
         className="w-full rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] py-1.5 pl-7 pr-2 text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] hover:border-[var(--color-border-hover)] focus-visible:border-[var(--color-accent-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-primary)]"
       />
     </div>
@@ -147,14 +148,15 @@ type MapPaneProps = Omit<Parameters<typeof CodeHealthMap>[0], "minHeight" | "chr
   failed: unknown;
   waiting: boolean;
   onRetry?: (() => void) | undefined;
+  errorTitle: string;
 };
 
 /** The canvas, or the state standing in for it while it loads or after it failed. */
-function MapPane({ failed, waiting, onRetry, ...map }: MapPaneProps) {
+function MapPane({ failed, waiting, onRetry, errorTitle, ...map }: MapPaneProps) {
   if (failed) {
     return (
       <div className="flex items-center justify-center" style={{ minHeight: MAP_HEIGHT }}>
-        <ApiError title="Couldn't load the map" message={toFriendlyMessage(failed)} {...(onRetry ? { onRetry } : {})} />
+        <ApiError title={errorTitle} message={toFriendlyMessage(failed)} {...(onRetry ? { onRetry } : {})} />
       </div>
     );
   }
@@ -209,8 +211,8 @@ export function AreaMapSection(props: AreaMapSectionProps) {
 
   return (
     <OverviewSection
-      title="Code health map"
-      description={props.description}
+      title={labels.mapTitle}
+      description={props.description ?? (source ? labels.mapDescription : labels.flatMapDescription)}
       action={
         props.onOverlayChange ? (
           <MapLensSwitcher
@@ -227,6 +229,9 @@ export function AreaMapSection(props: AreaMapSectionProps) {
             failed={source ? source.error : !flatFiles && props.mapError}
             waiting={source ? source.loading : !flatFiles}
             onRetry={source ? source.retry : props.onRetryMap}
+            errorTitle={labels.mapLoadError}
+            ariaLabel={labels.mapAriaLabel}
+            rootLabel={labels.repository}
             files={flatFiles ?? []}
             {...(source ? { source } : {})}
             area={area}
@@ -247,7 +252,7 @@ export function AreaMapSection(props: AreaMapSectionProps) {
           className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-4 lg:h-[var(--rail-h)] lg:overflow-y-auto lg:pr-1"
           style={{ "--rail-h": `${MAP_HEIGHT + CHROME_ROWS}px` } as CSSProperties}
         >
-          <SearchBox value={query} onChange={setQuery} />
+          <SearchBox value={query} onChange={setQuery} label={labels.searchPlaceholder} />
           {rail}
         </aside>
       </div>

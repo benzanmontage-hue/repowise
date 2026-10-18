@@ -5,7 +5,7 @@
  * trend, and the band mix. One figure and its reading, then the shape.
  */
 
-import { HEALTH_BAND_LABEL, HEALTH_BAND_ORDER, type HealthBand } from "@repowise-dev/types/health";
+import { HEALTH_BAND_LABEL, HEALTH_BAND_ORDER, formatScore, type HealthBand } from "@repowise-dev/types/health";
 import type { AreaDetail } from "@repowise-dev/types/areas";
 
 import { ProportionBar } from "../../shared/proportion-bar";
@@ -51,7 +51,7 @@ export function AreaHeader({
         <div className="flex min-w-0 flex-col">
           <span className="flex items-baseline gap-2">
             <span className={`font-mono text-[22px] font-semibold tabular-nums leading-none ${healthBandTextColor(band)}`}>
-              {a.health.toFixed(1)}
+              {formatScore(a.health)}
             </span>
             <span className={`text-xs font-medium ${healthBandTextColor(band)}`}>{HEALTH_BAND_LABEL[band]}</span>
           </span>

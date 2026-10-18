@@ -436,6 +436,13 @@
         "map": "Map"
       },
       "areaRail": {
+        "mapTitle": "Code health map",
+        "mapDescription": "Every folder is a disc sized by lines of code and coloured by the lens. Zoom in and folders open into their sub-folders, then their files. Click a folder to open it, a file to read it in the rail.",
+        "flatMapDescription": "Every file as a node, grouped into its folders and sized by lines of code. The lens re-marks the same field rather than redrawing it. Click a folder to zoom, a file to inspect it.",
+        "searchPlaceholder": "Find a file in the map…",
+        "mapLoadError": "Couldn't load the map",
+        "mapAriaLabel": "Code health map, {lens} lens. Arrow keys move between the areas and files inside the selected area, Enter opens one, Backspace goes up a level, Escape returns to the repository, plus and minus zoom.",
+        "promptAction": "{count, plural, one {Copy prompt for the top finding} other {Copy prompt for the top # findings}}",
         "repository": "Repository",
         "repoEyebrow": "Repository",
         "areaEyebrow": "Area",

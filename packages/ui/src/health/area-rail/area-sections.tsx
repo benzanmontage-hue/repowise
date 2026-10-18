@@ -7,7 +7,7 @@
  */
 
 import type { ReactNode } from "react";
-import { HEALTH_BAND_LABEL, bandForScore } from "@repowise-dev/types/health";
+import { HEALTH_BAND_LABEL, bandForScore, formatScore } from "@repowise-dev/types/health";
 import type { AreaFileRow, AreaFinding } from "@repowise-dev/types/areas";
 
 import { cn } from "../../lib/cn";
@@ -33,7 +33,7 @@ function Score({ score }: { score: number | null }) {
       className={cn("shrink-0 font-mono text-xs tabular-nums", score == null ? "text-[var(--color-text-tertiary)]" : scoreTextColor(score))}
       title={score == null ? undefined : HEALTH_BAND_LABEL[bandForScore(score)]}
     >
-      {score == null ? "—" : score.toFixed(1)}
+      {score == null ? "—" : formatScore(score)}
     </span>
   );
 }

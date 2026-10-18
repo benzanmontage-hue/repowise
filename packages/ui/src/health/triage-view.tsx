@@ -265,11 +265,6 @@ export function TriageView({
           onAreaChange={onAreaChange}
           fileExtras={fileExtras}
           railLabels={railLabels}
-          description={
-            hasAreas
-              ? "Every folder is a disc sized by lines of code and coloured by the lens. Zoom in and folders open into their sub-folders, then their files. Click a folder to open it, a file to read it in the rail."
-              : "Every file as a node, grouped into its folders and sized by lines of code. The lens re-marks the same field rather than redrawing it. Click a folder to zoom, a file to inspect it."
-          }
         />
       ) : null}
 

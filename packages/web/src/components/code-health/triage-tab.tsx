@@ -151,13 +151,8 @@ export function TriageTab({
     // The area's complete list: the server's cap is the most it serves.
     getAreaFiles: (path) =>
       getHealthMap(id, { area: path, cap: 8000, ...(scope ? { scope } : {}), ...(counts ? { counts } : {}) }),
-    areaLinks: (path) => {
-      const q = path ? `&area=${encodeURIComponent(path)}` : "";
-      return {
-        findings: `${prefix}/code-health?tab=findings${q}`,
-        contributors: `${prefix}/owners${path ? `?area=${encodeURIComponent(path)}` : ""}`,
-      };
-    },
+    // No area links yet: neither the Findings tab nor the Contributors page
+    // reads `?area=`, and a link must not claim a scope its page drops.
     fileHref: (path) => fileEntityPath(prefix, path),
     symbolHref: (symbolId) => symbolEntityPath(prefix, symbolId),
     navigate: (href) => router.push(href),

@@ -194,6 +194,42 @@ interface Layers {
 const discOf = (field: FieldView, path: string | null): DiscView | null =>
   path === null ? null : (field.discs.find((d) => d.path === path && d.state !== "slot") ?? null);
 
+/** The semantic zoom for this camera: recomputed when the camera or the field moved. */
+function decideField(st: LoopState, live: FieldLive, moved: boolean): FieldView {
+  if (!moved && !st.dirty.base && st.field) return st.field;
+  return computeView({
+    index: live.index,
+    geo: live.geo,
+    hosts: live.scene.hosts,
+    hostIndex: live.scene.hostIndex,
+    filesCovered: live.filesCovered,
+    cam: st.cam,
+    view: st.view,
+  });
+}
+
+/** The top layer's rings, for what is selected, hovered, under the cursor or matched. */
+function paintMarks(top: CanvasRenderingContext2D, st: LoopState, live: FieldLive, frame: Frame): void {
+  const { field } = frame;
+  drawMarks(top, frame, {
+    selected: live.selectedIdx,
+    hovered: live.hoverIdx,
+    cursor: live.cursorIdx,
+    matches: live.marked,
+    selectedArea: discOf(field, live.selectedArea),
+    hoveredArea: discOf(field, live.hoverArea),
+    cursorArea: discOf(field, live.cursorArea),
+    fillOf: (i) => st.resolve(live.fills[i] ?? NEUTRAL_FILL),
+    floorPx: MIN_NODE_PX,
+  });
+}
+
+/** Once the camera rests on a new view, tell the host what it wants loaded. */
+function reportWants(live: FieldLive, field: FieldView, settled: boolean): void {
+  const wants = field.wantChildren.length > 0 || field.wantFiles.length > 0;
+  if (settled && wants) live.onWants?.({ children: field.wantChildren, files: field.wantFiles });
+}
+
 /** One frame: advance the tweens, rebuild what went stale, paint what changed. */
 function runFrame(st: LoopState, live: FieldLive, layers: Layers): boolean {
   const t0 = now();
@@ -205,19 +241,7 @@ function runFrame(st: LoopState, live: FieldLive, layers: Layers): boolean {
   st.palette ??= resolvePalette(st.resolve);
   if (st.stale && base) rebuild(st, live, floor);
 
-  const moved = flight.moved;
-  const field =
-    moved || st.dirty.base || !st.field
-      ? computeView({
-          index: live.index,
-          geo: live.geo,
-          hosts: live.scene.hosts,
-          hostIndex: live.scene.hostIndex,
-          filesCovered: live.filesCovered,
-          cam: st.cam,
-          view: st.view,
-        })
-      : st.field;
+  const field = decideField(st, live, flight.moved);
   const fieldChanged = field !== st.field;
   st.field = field;
   const frame: Frame = {
@@ -228,29 +252,13 @@ function runFrame(st: LoopState, live: FieldLive, layers: Layers): boolean {
     field,
     areaRgb: (path) => st.resolve(live.areaFill.get(path) ?? NEUTRAL_FILL),
   };
-  if (base && (st.dirty.base || moved)) drawField(base, frame, st.batches, colour.t);
-  if (top && (st.dirty.top || fieldChanged)) {
-    drawMarks(top, frame, {
-      selected: live.selectedIdx,
-      hovered: live.hoverIdx,
-      cursor: live.cursorIdx,
-      matches: live.marked,
-      selectedArea: discOf(field, live.selectedArea),
-      hoveredArea: discOf(field, live.hoverArea),
-      cursorArea: discOf(field, live.cursorArea),
-      fillOf: (i) => st.resolve(live.fills[i] ?? NEUTRAL_FILL),
-      floorPx: MIN_NODE_PX,
-    });
-  }
-  if (st.dirty.labels || fieldChanged) {
-    placeLabels(field, layers.labels.current, st.view, layers.shownLabels);
-  }
+  if (base && (st.dirty.base || flight.moved)) drawField(base, frame, st.batches, colour.t);
+  if (top && (st.dirty.top || fieldChanged)) paintMarks(top, st, live, frame);
+  if (st.dirty.labels || fieldChanged) placeLabels(field, layers.labels.current, st.view, layers.shownLabels);
   st.dirty = { base: false, top: false, labels: false };
   st.frameMs = now() - t0;
   const animating = flight.animating || colour.animating;
-  if (!animating && fieldChanged && (field.wantChildren.length || field.wantFiles.length)) {
-    live.onWants?.({ children: field.wantChildren, files: field.wantFiles });
-  }
+  reportWants(live, field, !animating && fieldChanged);
   return animating;
 }
 

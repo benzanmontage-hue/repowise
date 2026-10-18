@@ -12,7 +12,7 @@ import { ChevronRight } from "lucide-react";
 import type { AreaDetail } from "@repowise-dev/types/areas";
 
 import { AiPromptButton } from "../ai-prompt-button";
-import { bulkAgentPromptLabel, type AiPromptRequest } from "../ai-prompt-action";
+import type { AiPromptRequest } from "../ai-prompt-action";
 import { buildAreaAiPrompt } from "../ai-prompts/area-prompt";
 import type { AreaIndex } from "../map/areas";
 import { areasNeedingAttention, mostImproved } from "../map/area-rank";
@@ -119,7 +119,7 @@ export function AreaCard(props: AreaCardProps) {
       />
 
       {findings.length > 0 ? (
-        <AiPromptButton label={bulkAgentPromptLabel(findings.length)} onClick={prompt} className="self-start" />
+        <AiPromptButton label={labels.promptAction(findings.length)} onClick={prompt} className="self-start" />
       ) : (
         <p className="text-xs text-[var(--color-success)]">{labels.allClean(detail.area.file_count)}</p>
       )}

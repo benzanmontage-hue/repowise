@@ -4,6 +4,7 @@
  */
 
 import { splitByOrigin } from "../biomarker-glossary";
+import { formatScore } from "@repowise-dev/types/health";
 import { findingEntries, historyContextBlock, type PromptFinding } from "./findings";
 import {
   bulletList,
@@ -105,11 +106,11 @@ export function buildAreaAiPrompt({
     "",
     bulletList([
       `Path: ${name}`,
-      score != null ? `Health: **${score.toFixed(1)}/10** across ${fileCount} file${pluralS(fileCount)}` : null,
+      score != null ? `Health: **${formatScore(score)}/10** across ${fileCount} file${pluralS(fileCount)}` : null,
       worstFiles.length
         ? `Lowest-scoring files: ${worstFiles
             .slice(0, 5)
-            .map((f) => `\`${f.path}\` (${f.score.toFixed(1)})`)
+            .map((f) => `\`${f.path}\` (${formatScore(f.score)})`)
             .join(", ")}`
         : null,
     ]),

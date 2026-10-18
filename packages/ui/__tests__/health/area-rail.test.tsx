@@ -16,6 +16,8 @@ import { buildAreaAiPrompt } from "../../src/health/ai-prompts/area-prompt.js";
 import { AreaCard } from "../../src/health/area-rail/area-card.js";
 import { DEFAULT_AREA_RAIL_LABELS } from "../../src/health/area-rail/labels.js";
 import { NODE_RAMP_STOP, healthBandMapFill } from "../../src/health/tokens.js";
+import { formatScore } from "@repowise-dev/types/health";
+import { scoreText } from "../../src/health/map/lens.js";
 import { mapFile as f } from "./map-test-utils.js";
 
 /** An index whose areas carry the server's ownership and delta fields. */
@@ -187,6 +189,18 @@ describe("the area card", () => {
     openPrompt: vi.fn(),
   };
 
+  it("prints the root score exactly as the page headline does", () => {
+    // The headline and the overview both say 8.08. formatScore truncates so a
+    // figure never reads as a better band than it is; the map and rail must
+    // print the same digits, not round 8.08 up to 8.1 beside an 8.0 headline.
+    const repo = { ...detail, area: { ...detail.area, path: "", health: 8.08, band: "good" as const } };
+    const { getByText } = render(<AreaCard {...props} detail={repo} />);
+    expect(formatScore(8.08)).toBe("8.0");
+    expect(getByText("8.0")).toBeInTheDocument();
+    expect(OVERLAY_SPECS.health.areaText!({ ...index.areas.get("")!, health: 8.08 })).toBe("8.0");
+    expect(scoreText(f("a.py", 10, null, { score: 8.08 }))).toBe("8.0");
+  });
+
   it("leads with the score, its band word and the good news when it improved", () => {
     const { getByText, getByTestId } = render(<AreaCard {...props} />);
     expect(getByText("4.2")).toBeInTheDocument();
@@ -197,7 +211,7 @@ describe("the area card", () => {
   it("makes the agent prompt for the area's findings its one filled action", () => {
     const openPrompt = vi.fn();
     const { getByRole } = render(<AreaCard {...props} openPrompt={openPrompt} />);
-    fireEvent.click(getByRole("button", { name: "Copy prompt for these 2" }));
+    fireEvent.click(getByRole("button", { name: "Copy prompt for the top 2 findings" }));
     const req = openPrompt.mock.calls[0]![0];
     expect(req.getPrompt("generic")).toContain("app/bad/x0.py");
   });
