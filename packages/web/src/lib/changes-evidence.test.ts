@@ -77,13 +77,32 @@ describe.each([
         findings: [finding],
       }),
     );
-    expect(input).toMatchObject({ label: "#7", files: ["src/a.py"], resolved: 2, complete: false });
+    expect(input).toMatchObject({ label: "#7", files: ["src/a.py"], resolved: 2, complete: false, omitted: 0 });
     expect(input.findings[0]).toMatchObject({ path: "src/a.py", sha: finding.sha });
     expect(input.attention).toEqual([]);
     const one = filePromptInput({ ...input, findings: [...input.findings, { ...finding, path: "src/b.py" }] }, "src/a.py");
     expect(one.files).toEqual(["src/a.py"]);
     expect(one.findings.map((f) => f.path)).toEqual(["src/a.py"]);
     expect(one.resolved).toBe(0);
+  });
+
+  it("counts the worse findings past the server's capped list", () => {
+    const capped = changePromptInput(
+      t,
+      change({
+        status: "available",
+        kind: "worsened",
+        scanned_commits: 1,
+        unscanned_commits: 0,
+        introduced: 60,
+        worsened: 2,
+        resolved: 0,
+        files_worsened: 1,
+        findings: [finding],
+      }),
+    );
+    expect(capped.omitted).toBe(61);
+    expect(filePromptInput(capped, "src/a.py").omitted).toBe(0);
   });
 
   it("names every health mark state from the catalog", () => {

@@ -51,4 +51,11 @@ describe("buildChangeAiPrompt", () => {
     expect(text).toContain("could not be compared");
     expect(text).toContain("get_risk");
   });
+
+  it("says how many worse findings the capped list leaves out", () => {
+    const finding = { change_kind: "introduced", severity: "high", path: "src/a.py", reason: "too long" };
+    const text = buildChangeAiPrompt({ change: { ...base, findings: [finding], omitted: 12 } });
+    expect(text).toContain("12 more findings this change made worse are not listed below");
+    expect(buildChangeAiPrompt({ change: { ...base, findings: [finding] } })).not.toContain("not listed below");
+  });
 });

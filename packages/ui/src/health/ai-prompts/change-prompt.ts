@@ -35,6 +35,8 @@ export interface ChangePromptInput {
   files: string[];
   /** Findings the change introduced or worsened, worst first. */
   findings: ChangePromptFinding[];
+  /** Worse findings past the listed ones (the server sends the worst first, capped). */
+  omitted?: number | undefined;
   /** Findings it resolved; counted, they have no location left. */
   resolved: number;
   /** False when part of the change was not compared. */
@@ -80,6 +82,9 @@ function changeFacts(c: ChangePromptInput): string {
     `Files (${c.files.length}): ${shown.join(", ")}${more}`,
     c.resolved > 0 ? `It also resolved ${c.resolved} existing finding${pluralS(c.resolved)}; keep those fixes.` : null,
     c.complete ? null : "Part of this change could not be compared, so the list below may be incomplete.",
+    c.omitted
+      ? `${c.omitted} more finding${pluralS(c.omitted)} this change made worse ${c.omitted === 1 ? "is" : "are"} not listed below (the list keeps the worst first); after these, check the files above for the rest.`
+      : null,
   ]);
 }
 

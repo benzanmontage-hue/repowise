@@ -125,6 +125,7 @@ export function changePromptInput(
     commits: change.commits,
     files: change.files.map((f) => f.path),
     findings: health?.findings ?? [],
+    omitted: health ? Math.max(0, health.introduced + health.worsened - (health.findings?.length ?? 0)) : 0,
     resolved: health?.resolved ?? 0,
     complete: health?.status !== "partial",
     attention: exceptions.map(
@@ -135,8 +136,8 @@ export function changePromptInput(
 
 /** The same prompt narrowed to one file: its findings, and only that file. */
 export function filePromptInput(input: ChangePromptInput, path: string): ChangePromptInput {
-  // Resolved counts are change-wide; a per-file prompt does not claim them.
-  return { ...input, files: [path], findings: input.findings.filter((f) => f.path === path), resolved: 0, attention: [] };
+  // Resolved and omitted counts are change-wide; a per-file prompt does not claim them.
+  return { ...input, files: [path], findings: input.findings.filter((f) => f.path === path), resolved: 0, omitted: 0, attention: [] };
 }
 
 /** The health mark's words, from the catalog; one place for the list and the lede. */
