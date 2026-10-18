@@ -238,7 +238,8 @@ describe("map chrome, off canvas", () => {
   it("MapLegend renders the active lens's bands and caption", () => {
     const { getByText } = render(<MapLegend overlay="performance" />);
     expect(getByText("5 or more")).toBeInTheDocument();
-    expect(getByText("Nothing surfaced")).toBeInTheDocument();
+    expect(getByText("Nothing surfaced or not analysed")).toBeInTheDocument();
+    expect(getByText("No issues found")).toBeInTheDocument();
     // The caption refuses the runtime claim the colour could be read as making,
     // and the rows are grouped so a flat column of swatches is not the whole key.
     expect(getByText(/never a runtime measurement/i)).toBeInTheDocument();

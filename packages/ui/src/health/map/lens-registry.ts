@@ -13,6 +13,7 @@ import { KNOWLEDGE_LENS, ownerLens, shareFill } from "./area-lenses";
 import {
   BAND_LEGEND,
   BURDEN_FILL,
+  CLEAR_NEUTRAL_FILL,
   HEALTH_UNSUPPORTED_LABEL,
   NEUTRAL_FILL,
   QUIET_FILL,
@@ -48,15 +49,33 @@ function weightedMean(
  * findings is not a measurement of good: zero is the quiet neutral.
  */
 const FLAGGED_STEPS = [0.1, 0.25] as const;
-function flaggedShareFill(files: readonly CodeHealthMapFile[], flagged: (f: CodeHealthMapFile) => boolean): string {
+function flaggedShareFill(
+  files: readonly CodeHealthMapFile[],
+  flagged: (f: CodeHealthMapFile) => boolean,
+  clear: string,
+): string {
   const share = files.filter(flagged).length / files.length;
-  if (share <= 0) return NEUTRAL_FILL;
+  if (share <= 0) return clear;
   if (share >= FLAGGED_STEPS[1]) return NODE_RAMP_STOP.alert;
   if (share >= FLAGGED_STEPS[0]) return NODE_RAMP_STOP.serious;
   return NODE_RAMP_STOP.warning;
 }
-const flaggedShare = (flagged: (f: CodeHealthMapFile) => boolean) => (files: readonly CodeHealthMapFile[]) =>
-  flaggedShareFill(files, flagged);
+/**
+ * A lens that folds folders by the share of analysed files flagged. `clear`
+ * is the analysed-and-nothing-found tone, distinct from not analysed.
+ */
+function flaggedLens(flagged: (f: CodeHealthMapFile) => boolean, clear: string) {
+  return {
+    flagged,
+    areaFromFiles: (files: readonly CodeHealthMapFile[]) => flaggedShareFill(files, flagged, clear),
+  };
+}
+const FOLDER_SHARE_LEGEND = (clear: string, clearLabel: string) => [
+  { group: "Folders", fill: NODE_RAMP_STOP.alert, label: "25% or more of analysed files flagged" },
+  { group: "Folders", fill: NODE_RAMP_STOP.serious, label: "10 to 25%" },
+  { group: "Folders", fill: NODE_RAMP_STOP.warning, label: "Under 10%" },
+  { group: "Folders", fill: clear, label: clearLabel },
+];
 
 /** A file a performance detector looked at: it has a count, and its language is covered. */
 const performanceAnalysed = (f: CodeHealthMapFile) => {
@@ -102,12 +121,13 @@ export const OVERLAY_SPECS: Record<Exclude<CodeHealthOverlay, AreaLensId>, FileL
       "file = open causes · folder = share of its analysed files with one · never a runtime measurement · no green: nothing here is proven fast",
     fill: performanceFill,
     analysed: performanceAnalysed,
-    areaFromFiles: flaggedShare(hasCause),
+    ...flaggedLens(hasCause, CLEAR_NEUTRAL_FILL),
     legend: [
       { group: "Open causes", fill: BURDEN_FILL[3], label: "5 or more" },
       { group: "Open causes", fill: BURDEN_FILL[2], label: "2 to 4" },
       { group: "Open causes", fill: BURDEN_FILL[1], label: "1" },
-      { group: "No open cause", fill: NEUTRAL_FILL, label: "Nothing surfaced" },
+      { group: "No open cause", fill: NEUTRAL_FILL, label: "Nothing surfaced or not analysed" },
+      ...FOLDER_SHARE_LEGEND(CLEAR_NEUTRAL_FILL, "No issues found"),
     ],
   },
   coverage: {
@@ -154,10 +174,11 @@ export const OVERLAY_SPECS: Record<Exclude<CodeHealthOverlay, AreaLensId>, FileL
     caption: "red = reclaimable lines · grey = clean",
     fill: (f) => ((f.dead_code_lines ?? 0) > 0 ? NODE_RAMP_STOP.alert : NEUTRAL_FILL),
     analysed: (f) => f.dead_code_lines != null,
-    areaFromFiles: flaggedShare((f) => (f.dead_code_lines ?? 0) > 0),
+    ...flaggedLens((f) => (f.dead_code_lines ?? 0) > 0, QUIET_FILL),
     legend: [
       { fill: NODE_RAMP_STOP.alert, label: "Has dead code" },
-      { fill: NEUTRAL_FILL, label: "Clean" },
+      { fill: NEUTRAL_FILL, label: "Clean or not analysed" },
+      ...FOLDER_SHARE_LEGEND(QUIET_FILL, "No issues found"),
     ],
     available: ({ files }) => files.some((f) => f.dead_code_lines != null),
   },
@@ -167,10 +188,11 @@ export const OVERLAY_SPECS: Record<Exclude<CodeHealthOverlay, AreaLensId>, FileL
     caption: "red = open findings · grey = clean",
     fill: (f) => ((f.security_findings ?? 0) > 0 ? NODE_RAMP_STOP.alert : NEUTRAL_FILL),
     analysed: (f) => f.security_findings != null,
-    areaFromFiles: flaggedShare((f) => (f.security_findings ?? 0) > 0),
+    ...flaggedLens((f) => (f.security_findings ?? 0) > 0, QUIET_FILL),
     legend: [
       { fill: NODE_RAMP_STOP.alert, label: "Has findings" },
-      { fill: NEUTRAL_FILL, label: "Clean" },
+      { fill: NEUTRAL_FILL, label: "Clean or not analysed" },
+      ...FOLDER_SHARE_LEGEND(QUIET_FILL, "No issues found"),
     ],
     available: ({ files }) => files.some((f) => f.security_findings != null),
   },

@@ -18,6 +18,8 @@ import type { CodeHealthMapFile } from "./types";
 export interface AreaAnalysed {
   analysed: number;
   loaded: number;
+  /** Analysed files carrying something to fix, for a lens that flags. */
+  flagged?: number;
 }
 
 export interface AreaFills {
@@ -50,6 +52,7 @@ function foldInputs(index: AreaIndex, lens: MapLens, files: readonly CodeHealthM
       c.loaded += 1;
       if (ok) {
         c.analysed += 1;
+        if (lens.flagged) c.flagged = (c.flagged ?? 0) + (lens.flagged(f) ? 1 : 0);
         const list = analysedFiles.get(area);
         if (list) list.push(f);
         else analysedFiles.set(area, [f]);

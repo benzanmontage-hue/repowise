@@ -28,6 +28,13 @@ export const QUIET_FILL = NODE_HEALTHY_FILL;
  */
 export const NEUTRAL_FILL = "var(--color-node-neutral)";
 
+/**
+ * A folder a lens checked and found nothing in, where green would overclaim
+ * (performance: no supported pattern is not proven fast). The neutral pulled
+ * toward the page, so "checked, clear" never reads as "not checked".
+ */
+export const CLEAR_NEUTRAL_FILL = "color-mix(in srgb, var(--color-node-neutral) 40%, var(--color-bg-surface))";
+
 export interface LegendRow {
   fill: string;
   label: string;
@@ -76,6 +83,8 @@ export interface MapLens {
    * read as the worst value. Absent: every file carries it.
    */
   analysed?: (f: CodeHealthMapFile) => boolean;
+  /** Whether an analysed file carries something to fix, for "N of M flagged". */
+  flagged?: (f: CodeHealthMapFile) => boolean;
   /**
    * An area's fill from its loaded, analysed files, when `areaFill` cannot
    * say. Never called with an empty list: a folder with no analysed file is

@@ -39,6 +39,14 @@ const CARD_GAP = 16;
  * usually left the node it was asking about. The card flips to the other side
  * of the pointer near an edge so it is never clipped by the container.
  */
+/** What a folder's colour was read from, in its own counts. */
+function analysedLine(a: AreaAnalysed | null): string {
+  if (!a) return "Files not loaded yet · zoom in to read them";
+  const read = `${a.analysed.toLocaleString()} of ${a.loaded.toLocaleString()} files analysed`;
+  if (a.flagged === undefined || a.analysed === 0) return read;
+  return `${a.flagged.toLocaleString()} of ${a.analysed.toLocaleString()} analysed files flagged · ${read}`;
+}
+
 /** Where a card opens beside the pointer, flipped near an edge. */
 function cardPosition(x: number, y: number, width: number, height: number) {
   const left = x + CARD_GAP + CARD_W > width ? x - CARD_GAP - CARD_W : x + CARD_GAP;
@@ -93,9 +101,7 @@ export function AreaHoverCard({
       </div>
       {lensCoversFiles && !slot ? (
         <div className="mt-0.5 text-[10px] leading-tight text-[var(--color-text-tertiary)] tabular-nums">
-          {analysed
-            ? `${analysed.analysed.toLocaleString()} of ${analysed.loaded.toLocaleString()} files analysed`
-            : "Files not loaded yet · zoom in to read them"}
+          {analysedLine(analysed)}
         </div>
       ) : null}
     </div>

@@ -10,7 +10,7 @@ import { areaFills, fileFills } from "../../src/health/map/fills.js";
 import { buildScene } from "../../src/health/map/paint.js";
 import { KNOWLEDGE_LENS, ownerLens } from "../../src/health/map/area-lenses.js";
 import { OVERLAY_SPECS } from "../../src/health/map/lens-registry.js";
-import { NEUTRAL_FILL, type MapLens } from "../../src/health/map/lens.js";
+import { CLEAR_NEUTRAL_FILL, NEUTRAL_FILL, QUIET_FILL, type MapLens } from "../../src/health/map/lens.js";
 import { NODE_RAMP_STOP } from "../../src/health/tokens.js";
 import type { CodeHealthMapFile } from "../../src/health/map/types.js";
 import { mapFile as f } from "./map-test-utils.js";
@@ -72,11 +72,23 @@ describe("performance folds by share over analysed files", () => {
     const { fill, analysed: counts } = paint(OVERLAY_SPECS.performance, files);
     // One analysed file, and it has a cause: the share is of what was analysed.
     expect(fill.get("core")).toBe(NODE_RAMP_STOP.alert);
-    expect(counts.get("core")).toEqual({ analysed: 1, loaded: 31 });
+    expect(counts.get("core")).toEqual({ analysed: 1, loaded: 31, flagged: 1 });
   });
 
-  it("is grey, not green, when nothing analysed has a cause", () => {
-    const { fill } = paint(OVERLAY_SPECS.performance, [analysed("core/a.py", 0)]);
-    expect(fill.get("core")).toBe(NEUTRAL_FILL);
+  it("tells a checked, clear folder from an unchecked one, without claiming fast", () => {
+    const { fill, analysed: counts } = paint(OVERLAY_SPECS.performance, [analysed("core/a.py", 0)]);
+    expect(fill.get("core")).toBe(CLEAR_NEUTRAL_FILL);
+    expect(fill.get("core")).not.toBe(NEUTRAL_FILL);
+    expect(counts.get("core")).toEqual({ analysed: 1, loaded: 1, flagged: 0 });
+  });
+
+  it("dead code and security call a checked, clean folder clean", () => {
+    for (const [id, row] of [
+      ["dead-code", { dead_code_lines: 0 }],
+      ["security", { security_findings: 0 }],
+    ] as const) {
+      const { fill } = paint(OVERLAY_SPECS[id], [f("lib/a.py", 40, null, row)]);
+      expect(fill.get("lib")).toBe(QUIET_FILL);
+    }
   });
 });
