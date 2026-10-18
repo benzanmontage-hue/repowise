@@ -26,6 +26,7 @@ __all__ = [
     "MAX_DEPTH",
     "CouplingScope",
     "PlacedEdge",
+    "area_placer",
     "default_depth",
     "place_edges",
 ]
@@ -71,10 +72,20 @@ class PlacedEdge:
     target_area: str
 
 
-def _area_of(path: str, scope: CouplingScope, floor: int) -> str:
-    if in_area(path, scope.root):
-        return area_at(path, floor + scope.depth)
-    return area_at(path, floor)
+def area_placer(scope: CouplingScope) -> Callable[[str], str]:
+    """The area *scope* places a file in, memoised per path. One placer for
+    co-change pairs and dependency edges, so the two always name the same area."""
+    floor = area_depth(scope.root)
+    areas: dict[str, str] = {}
+
+    def area_of(path: str) -> str:
+        found = areas.get(path)
+        if found is None:
+            depth = floor + scope.depth if in_area(path, scope.root) else floor
+            found = areas[path] = area_at(path, depth)
+        return found
+
+    return area_of
 
 
 def _cutoff(edges: Sequence[CouplingEdge], days: int | None) -> str | None:
@@ -127,16 +138,8 @@ def place_edges(
     Order is preserved, so strongest-first input stays strongest first. An
     edge needs a file under the root to be in the view.
     """
-    floor = area_depth(scope.root)
     cutoff = _cutoff(edges, scope.recent_days)
-    areas: dict[str, str] = {}
-
-    def area_of(path: str) -> str:
-        found = areas.get(path)
-        if found is None:
-            found = areas[path] = _area_of(path, scope, floor)
-        return found
-
+    area_of = area_placer(scope)
     out: list[PlacedEdge] = []
     for e in edges:
         if not _kept(e, scope, cutoff, is_test):

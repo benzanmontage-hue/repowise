@@ -64,6 +64,11 @@ class CouplingFigures(BaseModel):
     #: Shared commits summed per file pair: a commit counts once per pair it touched.
     co_changes: int
     last_co_change: str | None = None
+    #: Area pairs only: a dependency joins the two areas in either direction.
+    linked: bool | None = None
+    #: Area pairs only: unexplained file pairs and no dependency between the
+    #: areas at all. The finding; layered areas that import each other are not.
+    hidden: bool | None = None
 
 
 class CouplingAreaSummary(CouplingFigures):
@@ -90,6 +95,10 @@ class CouplingAreaTotals(BaseModel):
     area_pairs: int
     #: Area pairs holding at least one unexplained file pair.
     unexplained_area_pairs: int
+    #: Area pairs with unexplained file pairs and no dependency between the areas.
+    hidden_area_pairs: int
+    #: Pairs indexed before the dependency check ran: neither explained nor not.
+    unlabelled_pairs: int
 
 
 class CouplingAreasResponse(BaseModel):
@@ -98,5 +107,5 @@ class CouplingAreasResponse(BaseModel):
     totals: CouplingAreaTotals
     #: Every area a kept pair touches, unexplained-heaviest first.
     areas: list[CouplingAreaSummary] = Field(default_factory=list)
-    #: Ranked by unexplained pairs, then strength; capped at the asked limit.
+    #: Hidden first, then by unexplained pairs and strength; capped at the asked limit.
     area_pairs: list[CouplingAreaPair] = Field(default_factory=list)

@@ -1240,6 +1240,8 @@ export interface CouplingAreaPair {
   strength: number;
   co_changes: number;
   last_co_change?: string | null;
+  linked?: boolean | null;
+  hidden?: boolean | null;
   source: string;
   target: string;
   top_pairs?: CouplingEdgeResponse[];
@@ -1253,6 +1255,8 @@ export interface CouplingAreaSummary {
   strength: number;
   co_changes: number;
   last_co_change?: string | null;
+  linked?: boolean | null;
+  hidden?: boolean | null;
   path: string;
 }
 
@@ -1262,6 +1266,8 @@ export interface CouplingAreaTotals {
   unexplained_pairs: number;
   area_pairs: number;
   unexplained_area_pairs: number;
+  hidden_area_pairs: number;
+  unlabelled_pairs: number;
 }
 
 export interface CouplingAreasResponse {

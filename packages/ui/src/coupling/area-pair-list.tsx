@@ -2,26 +2,34 @@
 
 import { memo } from "react";
 import type { CouplingAreaPair, CouplingAreasResponse } from "@repowise-dev/types/coupling";
-import { AiPromptButton } from "../health/ai-prompt-button";
+import { PromptForRowsButton, RowPromptAction } from "../health/row-prompt-action";
+import { CleanState } from "../shared/clean-state";
 import { PageLede } from "../shared/page-lede";
-import { cn } from "../lib/cn";
+import { shareColor } from "../shared/proportion-bar";
 import type { AreaCouplingCopy } from "./area-copy";
 import { areaLabel, type AreaPairRef } from "./area-view-state";
 
-/** The exception mark: a dot and a word, never colour alone. */
-function UnexplainedMark({ pair, copy }: { pair: CouplingAreaPair; copy: AreaCouplingCopy }) {
-  if (pair.unexplained_pairs === 0) {
-    return <span className="text-xs text-[var(--color-text-tertiary)]">{copy.allExplained}</span>;
-  }
+/**
+ * The row's reading. Only a hidden pair (no dependency between the two areas)
+ * is marked, with a dot and a word; a layered pair that imports across is
+ * expected coupling and reads as plain figures. The share bar is the neutral
+ * proportion step, never a warning colour on every row.
+ */
+function PairReading({ pair, copy }: { pair: CouplingAreaPair; copy: AreaCouplingCopy }) {
   const pct = Math.round(pair.unexplained_share * 100);
   return (
-    <span className="flex min-w-0 flex-col items-end gap-1">
-      <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs tabular-nums text-[var(--color-text-primary)]">
-        <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--color-warning)]" />
-        {copy.unexplained(pair.unexplained_pairs, pct)}
+    <span className="flex min-w-0 flex-col items-start gap-1 sm:items-end">
+      {pair.hidden && (
+        <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs font-medium text-[var(--color-text-primary)]">
+          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--color-warning)]" />
+          {copy.hiddenMark}
+        </span>
+      )}
+      <span className="whitespace-nowrap text-xs tabular-nums text-[var(--color-text-secondary)]">
+        {pair.unexplained_pairs > 0 ? copy.unexplained(pair.unexplained_pairs, pct) : copy.allExplained}
       </span>
       <span aria-hidden className="block h-1 w-24 overflow-hidden rounded-full bg-[var(--color-bg-elevated)]">
-        <span className="block h-full bg-[var(--color-warning)]" style={{ width: `${pct}%` }} />
+        <span className="block h-full" style={{ width: `${pct}%`, background: shareColor(0) }} />
       </span>
     </span>
   );
@@ -56,16 +64,14 @@ const AreaPairRow = memo(function AreaPairRow({ pair, copy, onOpen, onPrompt }: 
             {meta.join(" · ")}
           </span>
         </span>
-        <UnexplainedMark pair={pair} copy={copy} />
+        <PairReading pair={pair} copy={copy} />
       </button>
-      {pair.unexplained_pairs > 0 && (
-        // Quiet per row: a ghost button shown on hover and focus, always in the
-        // tab order; the filled prompt lives in the list header and the drill-down.
-        // Follow-up: swap to the shared row-action component once L-nav lands it.
-        <AiPromptButton
+      {pair.hidden && (
+        <RowPromptAction
           label={copy.promptLabel}
+          subject={name}
           onClick={() => onPrompt([pair])}
-          className="self-start whitespace-nowrap border-transparent bg-transparent transition-opacity focus-visible:opacity-100 sm:self-center sm:opacity-0 sm:group-hover/row:opacity-100 sm:group-focus-within/row:opacity-100"
+          className="self-start sm:self-center"
         />
       )}
     </li>
@@ -82,11 +88,57 @@ export interface CouplingAreaPairListProps {
   footer?: React.ReactNode;
 }
 
+/** The lede: hidden pairs when there are any, else a clean or an unchecked state. */
+function Lede({
+  data,
+  copy,
+  testsIncluded,
+  hiddenRows,
+  onPrompt,
+}: Omit<CouplingAreaPairListProps, "onOpen" | "footer"> & { hiddenRows: CouplingAreaPair[] }) {
+  const { totals, depth } = data;
+  const hidden = totals.hidden_area_pairs;
+  if (hidden > 0) {
+    return (
+      <PageLede
+        label={copy.ledeLabel}
+        value={hidden.toLocaleString()}
+        unit={copy.ledeUnit(hidden)}
+        layout="beside"
+        action={
+          <PromptForRowsButton
+            count={hiddenRows.length}
+            label={copy.bulkPromptLabel}
+            onClick={() => onPrompt(hiddenRows)}
+          />
+        }
+      >
+        <p className="text-[15px] text-[var(--color-text-primary)]">{copy.verdict(hidden)}</p>
+        <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+          {copy.scope(totals.pairs, depth, testsIncluded)}
+        </p>
+      </PageLede>
+    );
+  }
+  // Every kept pair predates the dependency check: there is no verdict to give.
+  if (totals.pairs > 0 && totals.unlabelled_pairs === totals.pairs) {
+    return <p className="text-xs text-[var(--color-text-secondary)]">{copy.unchecked}</p>;
+  }
+  return (
+    <CleanState
+      align="start"
+      title={copy.cleanTitle(depth)}
+      description={copy.cleanBody(totals.pairs)}
+    />
+  );
+}
+
 /**
- * The area view's body: a verdict lede, then area pairs ranked by how many of
- * their file pairs no dependency explains. A ranked list rather than a matrix:
- * on real indexes a few dozen of a few hundred area pairs carry the finding,
- * so a grid would be mostly empty cells.
+ * The area view's body: a verdict lede, then area pairs, hidden ones first. An
+ * area pair is hidden only when no dependency joins the two areas at all;
+ * layered areas that import each other are expected coupling, listed but not
+ * marked. A ranked list rather than a matrix: on real indexes a few dozen of
+ * a few hundred area pairs carry the finding, so a grid would be mostly empty.
  */
 export function CouplingAreaPairList({
   data,
@@ -97,42 +149,19 @@ export function CouplingAreaPairList({
   footer,
 }: CouplingAreaPairListProps) {
   const pairs = data.area_pairs ?? [];
-  const { totals, depth } = data;
-  const hidden = totals.unexplained_area_pairs;
-  const actionable = pairs.filter((p) => p.unexplained_pairs > 0);
+  const hiddenRows = pairs.filter((p) => p.hidden);
   return (
     <div className="space-y-6">
-      {hidden > 0 ? (
-        <PageLede
-          label={copy.ledeLabel}
-          value={hidden.toLocaleString()}
-          unit={copy.ledeUnit(hidden)}
-          action={
-            actionable.length > 0 ? (
-              <AiPromptButton
-                label={copy.bulkPromptLabel(actionable.length)}
-                onClick={() => onPrompt(actionable)}
-              />
-            ) : undefined
-          }
-        >
-          <p className="text-[15px] text-[var(--color-text-primary)]">{copy.verdict(hidden)}</p>
-          <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-            {copy.scope(totals.pairs, depth, testsIncluded)}
-          </p>
-        </PageLede>
-      ) : (
-        <section className="space-y-1">
-          <p className="flex items-center gap-2 text-[15px] font-medium text-[var(--color-text-primary)]">
-            <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--color-success)]" />
-            {copy.cleanTitle(depth)}
-          </p>
-          <p className="text-xs text-[var(--color-text-secondary)]">{copy.cleanBody(totals.pairs)}</p>
-        </section>
-      )}
+      <Lede
+        data={data}
+        copy={copy}
+        testsIncluded={testsIncluded}
+        hiddenRows={hiddenRows}
+        onPrompt={onPrompt}
+      />
 
       {pairs.length > 0 && (
-        <ul className={cn("border-t border-[var(--color-border-default)]")}>
+        <ul className="border-t border-[var(--color-border-default)]">
           {pairs.map((pair) => (
             <AreaPairRow
               key={`${pair.source}|${pair.target}`}
@@ -147,7 +176,9 @@ export function CouplingAreaPairList({
 
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--color-text-secondary)]">
         <span>
-          {totals.area_pairs > pairs.length ? copy.showing(pairs.length, totals.area_pairs) : null}
+          {data.totals.area_pairs > pairs.length
+            ? copy.showing(pairs.length, data.totals.area_pairs)
+            : null}
         </span>
         {footer}
       </div>

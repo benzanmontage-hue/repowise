@@ -13,6 +13,7 @@ from repowise.core.analysis.coupling.areas import (
     TOP_PAIRS,
     area_coupling,
     coupled_areas,
+    linked_area_pairs,
 )
 from repowise.core.analysis.coupling.graph import (
     CouplingEdge,
@@ -26,6 +27,7 @@ from repowise.core.analysis.coupling.scope import (
     MAX_DEPTH,
     CouplingScope,
     PlacedEdge,
+    area_placer,
     default_depth,
     place_edges,
 )
@@ -41,10 +43,12 @@ __all__ = [
     "CouplingScope",
     "PlacedEdge",
     "area_coupling",
+    "area_placer",
     "coupled_areas",
     "coupling_edges",
     "coupling_graph",
     "default_depth",
     "graph_from_edges",
+    "linked_area_pairs",
     "place_edges",
 ]

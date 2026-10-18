@@ -183,7 +183,7 @@ function areaPairSection(pair: AreaCouplingPromptPair): string {
     `### ${areaName(pair.source)} ↔ ${areaName(pair.target)}`,
     "",
     bulletList([
-      `${pair.pairs} file pairs change together across these areas; **${pair.unexplained_pairs}** have no import, type use, framework wiring, or read between them.`,
+      `${pair.pairs} file pairs change together across these areas, and no dependency joins the two areas in either direction; **${pair.unexplained_pairs}** of the pairs are files that could have carried one.`,
       `${pair.co_changes} shared commits summed over those pairs${last}.`,
       ...(pair.top_pairs ?? []).map(filePairLine),
     ]),
@@ -211,7 +211,7 @@ export function buildAreaCouplingAiPrompt({
     "",
     `## Hidden coupling between areas${repoSuffix(repoName)}`,
     "",
-    "Files in these directories keep changing in the same commits although the dependency graph does not connect them. Source: repowise co-change analysis of git history; treat it as a lead, not proof. Test files are left out, since a test is expected to change with its code.",
+    "Files in these directories keep changing in the same commits although no file in one area imports, uses or wires a file in the other. Across languages that usually means an unwritten contract (a wire format, a schema mirrored by hand, a command a script runs). Source: repowise co-change analysis of git history; treat it as a lead, not proof. Test files are left out, since a test is expected to change with its code.",
     "",
     ...areaPairs.flatMap((pair) => [areaPairSection(pair), ""]),
     ...closingSections(CONSTRAINTS, AREA_EXPECTED),

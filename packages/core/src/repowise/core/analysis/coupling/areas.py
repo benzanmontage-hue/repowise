@@ -2,6 +2,10 @@
 it the dependency graph cannot explain.
 
 Folds placed file pairs (:func:`~.scope.place_edges`) into area pairs. An
+area pair is *hidden* only when no dependency edge joins the two areas in
+either direction: across a layer boundary (an app and the package it imports)
+most file pairs never import each other directly, so the file-level
+``unexplained`` label alone would flag every layered pair. An
 area pair's figures are sums over its file pairs, so ``co_changes`` counts a
 commit once per file pair it touched, not once per commit: the distinct-commit
 count is not stored. Pure: no DB access.
@@ -9,7 +13,7 @@ count is not stored. Pure: no DB access.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Collection, Iterable, Sequence
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
@@ -25,6 +29,7 @@ __all__ = [
     "TOP_PAIRS",
     "area_coupling",
     "coupled_areas",
+    "linked_area_pairs",
 ]
 
 #: Area pairs one answer carries, ranked; the total is always reported.
@@ -67,9 +72,33 @@ class _Tally:
         }
 
 
-def _rank(tally: _Tally) -> tuple[int, float]:
-    """Unexplained pairs first, the finding; strength breaks ties."""
-    return (tally.unexplained, tally.strength)
+AreaKey = tuple[str, str]
+
+
+def _key(a: str, b: str) -> AreaKey:
+    return (a, b) if a <= b else (b, a)
+
+
+def linked_area_pairs(
+    dependencies: Iterable[tuple[str, str]], place: Callable[[str], str]
+) -> set[AreaKey]:
+    """Area pairs a dependency joins, in either direction, from file-level
+    ``(importer, imported)`` edges placed by *place* (the view's placer)."""
+    return {_key(place(src), place(dst)) for src, dst in dependencies}
+
+
+def _verdict(key: AreaKey, tally: _Tally, linked: Collection[AreaKey]) -> dict[str, bool]:
+    """``hidden`` only when no dependency joins the two areas at all and some
+    file pair could have carried one: file pairs across a layer boundary rarely
+    import each other directly, so a file-level gap alone is no finding."""
+    is_linked = key in linked or key[0] == key[1]
+    return {"linked": is_linked, "hidden": not is_linked and tally.unexplained > 0}
+
+
+def _rank(item: tuple[AreaKey, _Tally], linked: Collection[AreaKey]) -> tuple[bool, int, float]:
+    """Hidden area pairs first, the finding; then unexplained pairs, then strength."""
+    key, tally = item
+    return (_verdict(key, tally, linked)["hidden"], tally.unexplained, tally.strength)
 
 
 def _top_edges(edges: list[CouplingEdge], limit: int) -> list[CouplingEdge]:
@@ -82,29 +111,30 @@ def _top_edges(edges: list[CouplingEdge], limit: int) -> list[CouplingEdge]:
 def area_coupling(
     placed: Sequence[PlacedEdge],
     *,
+    linked: Collection[AreaKey] = frozenset(),
     limit: int = AREA_PAIR_LIMIT,
     top_pairs: int = TOP_PAIRS,
 ) -> dict[str, Any]:
     """Area pairs and per-area totals over *placed* edges.
 
     *placed* is strongest first (as :func:`~.scope.place_edges` keeps it), so
-    each pair's file list is too. A pair inside one area is an area pair with
-    itself, present only when the scope kept same-area edges.
+    each pair's file list is too. *linked* is :func:`linked_area_pairs` under
+    the same placement. A pair inside one area is an area pair with itself,
+    present only when the scope kept same-area edges, and never hidden.
     """
-    pairs: dict[tuple[str, str], _Tally] = {}
+    pairs: dict[AreaKey, _Tally] = {}
     areas: dict[str, _Tally] = {}
-    cross = unexplained = 0
+    cross = unexplained = unlabelled = 0
     for p in placed:
-        key = (p.source_area, p.target_area)
-        if key[0] > key[1]:
-            key = (key[1], key[0])
+        key = _key(p.source_area, p.target_area)
         pairs.setdefault(key, _Tally()).add(p.edge, keep=True)
         for area in set(key):
             areas.setdefault(area, _Tally()).add(p.edge)
         cross += key[0] != key[1]
         unexplained += p.edge.structural == STRUCTURAL_UNEXPLAINED
+        unlabelled += p.edge.structural is None
 
-    ranked = sorted(pairs.items(), key=lambda kv: _rank(kv[1]), reverse=True)
+    ranked = sorted(pairs.items(), key=lambda kv: _rank(kv, linked), reverse=True)
     return {
         "totals": {
             "pairs": len(placed),
@@ -112,19 +142,26 @@ def area_coupling(
             "unexplained_pairs": unexplained,
             "area_pairs": len(pairs),
             "unexplained_area_pairs": sum(1 for t in pairs.values() if t.unexplained),
+            "hidden_area_pairs": sum(1 for kv in pairs.items() if _verdict(*kv, linked)["hidden"]),
+            # Pairs from an index written before the dependency check: no
+            # verdict either way, so a view must not call them clean.
+            "unlabelled_pairs": unlabelled,
         },
         "areas": [
             {"path": area, **tally.figures()}
-            for area, tally in sorted(areas.items(), key=lambda kv: _rank(kv[1]), reverse=True)
+            for area, tally in sorted(
+                areas.items(), key=lambda kv: (kv[1].unexplained, kv[1].strength), reverse=True
+            )
         ],
         "area_pairs": [
             {
-                "source": a,
-                "target": b,
+                "source": key[0],
+                "target": key[1],
                 **tally.figures(),
+                **_verdict(key, tally, linked),
                 "top_pairs": [asdict(e) for e in _top_edges(tally.edges, top_pairs)],
             }
-            for (a, b), tally in ranked[:limit]
+            for key, tally in ranked[:limit]
         ],
     }
 
@@ -133,6 +170,7 @@ def coupled_areas(
     edges: Sequence[CouplingEdge],
     area: str,
     *,
+    dependencies: Iterable[tuple[str, str]] = (),
     keep: Callable[[CouplingEdge], bool] = lambda e: True,
     limit: int = COUPLED_AREA_LIMIT,
 ) -> list[dict[str, Any]]:
@@ -140,17 +178,28 @@ def coupled_areas(
 
     A partner file is named by its area at *area*'s own depth, so
     ``packages/ui`` lists ``packages/web`` and ``tests/unit``, not single
-    folders. The root has nothing outside it and lists nothing.
+    folders; each carries ``linked``/``hidden`` from *dependencies* as an area
+    pair does. The root has nothing outside it and lists nothing.
     """
     depth = area_depth(area)
     if depth == 0:
         return []
+
+    def outside(src: str, dst: str) -> str | None:
+        """The other file's area when exactly one of the two is in *area*."""
+        inside_a, inside_b = in_area(src, area), in_area(dst, area)
+        if inside_a == inside_b:
+            return None
+        return area_at(dst if inside_a else src, depth)
+
     tallies: dict[str, _Tally] = {}
     for e in edges:
-        inside_a, inside_b = in_area(e.source, area), in_area(e.target, area)
-        if inside_a == inside_b or not keep(e):
-            continue
-        other = e.target if inside_a else e.source
-        tallies.setdefault(area_at(other, depth), _Tally()).add(e)
+        other = outside(e.source, e.target)
+        if other is not None and keep(e):
+            tallies.setdefault(other, _Tally()).add(e)
+    linked = {_key(area, o) for o in (outside(s, d) for s, d in dependencies) if o is not None}
     ranked = sorted(tallies.items(), key=lambda kv: kv[1].strength, reverse=True)
-    return [{"path": path, **tally.figures()} for path, tally in ranked[:limit]]
+    return [
+        {"path": path, **tally.figures(), **_verdict(_key(area, path), tally, linked)}
+        for path, tally in ranked[:limit]
+    ]

@@ -7,8 +7,10 @@ from repowise.core.analysis.coupling import (
     CouplingEdge,
     CouplingScope,
     area_coupling,
+    area_placer,
     coupled_areas,
     default_depth,
+    linked_area_pairs,
     place_edges,
 )
 
@@ -89,7 +91,7 @@ def test_area_pairs_rank_unexplained_first_and_carry_their_file_pairs():
     assert [p["source"] for p in first["top_pairs"]] == ["src/ui/a.ts"]
     totals = out["totals"]
     assert totals["pairs"] == len(placed) == totals["cross_area_pairs"]
-    assert totals["unexplained_area_pairs"] == 2
+    assert totals["unexplained_area_pairs"] == 2 and totals["unlabelled_pairs"] == 0
     web = next(a for a in out["areas"] if a["path"] == "src/web")
     assert web["pairs"] == 3
 
@@ -114,3 +116,20 @@ def test_default_depth_splits_a_dominant_area():
     # Nothing deeper to split into.
     assert default_depth(["src/a.py", "src/b.py"]) == 1
     assert default_depth(paths, root="src") == 1
+
+
+def test_a_dependency_anywhere_between_two_areas_makes_their_pair_expected():
+    scope = CouplingScope(depth=2, cross_area=True)
+    placed = place_edges(EDGES, scope, is_test=_no_tests)
+    # One import from web into ui, between files that never co-change.
+    linked = linked_area_pairs([("src/web/z.ts", "src/ui/y.ts")], area_placer(scope))
+    assert linked == {("src/ui", "src/web")}
+    out = area_coupling(placed, linked=linked)
+    verdict = {(p["source"], p["target"]): (p["linked"], p["hidden"]) for p in out["area_pairs"]}
+    assert verdict[("src/ui", "src/web")] == (True, False)
+    # core and tests: unexplained pairs and no dependency at all.
+    assert verdict[("src/core", "tests")] == (False, True)
+    # core and web: corroborated pairs only, so nothing to hide.
+    assert verdict[("src/core", "src/web")] == (False, False)
+    assert out["totals"]["hidden_area_pairs"] == 1
+    assert out["area_pairs"][0]["hidden"] is True

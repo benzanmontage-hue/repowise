@@ -14,22 +14,27 @@ from collections.abc import Callable, Hashable
 from dataclasses import dataclass, field, replace
 from typing import Any, TypeVar
 
+import structlog
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from repowise.core.analysis.coupling import (
     CouplingEdge,
     CouplingGraph,
     CouplingScope,
     area_coupling,
+    area_placer,
     coupled_areas,
     coupling_edges,
     default_depth,
     graph_from_edges,
+    linked_area_pairs,
     place_edges,
 )
+from repowise.core.ingestion.models import FILE_DEPENDENCY_EDGE_TYPES
+from repowise.core.persistence.database import get_session
 from repowise.core.persistence.index_cache import IndexStampCache
-from repowise.core.persistence.models import GitMetadata, HealthFileMetric
+from repowise.core.persistence.models import GitMetadata, GraphEdge, HealthFileMetric
 from repowise.core.test_paths import is_test_related_path
 
 __all__ = [
@@ -39,7 +44,10 @@ __all__ = [
     "coupled_areas_for",
     "coupling_answer",
     "graph_payload",
+    "warm_coupling_model",
 ]
+
+logger = structlog.get_logger(__name__)
 
 T = TypeVar("T")
 
@@ -65,6 +73,8 @@ class CouplingModel:
     metrics: dict[str, Any]
     #: Files the git walk recorded: the denominator of the coupled-file count.
     total_files: int
+    #: File-level ``(importer, imported)`` dependency edges, for area linkage.
+    dependencies: list[tuple[str, str]] = field(default_factory=list)
     _tests: dict[str, bool] = field(default_factory=dict, repr=False)
     _depths: dict[str, int] = field(default_factory=dict, repr=False)
 
@@ -92,7 +102,26 @@ async def _build(session: AsyncSession, repo_id: str) -> CouplingModel:
     m = HealthFileMetric
     metric_q = select(m.file_path, m.module, m.score, m.nloc).where(m.repository_id == repo_id)
     metrics = {row.file_path: row for row in (await session.execute(metric_q)).all()}
-    return CouplingModel(coupling_edges(git_rows), metrics, len(git_rows))
+    return CouplingModel(
+        coupling_edges(git_rows), metrics, len(git_rows), await _dependencies(session, repo_id)
+    )
+
+
+async def _dependencies(session: AsyncSession, repo_id: str) -> list[tuple[str, str]]:
+    """File-to-file dependency edges, the kinds that corroborate a co-change
+    pair. Symbol and external nodes are left out; workspace-package imports
+    (``@repowise-dev/ui``, ``repowise.core``) already resolve to files."""
+    e = GraphEdge
+    q = select(e.source_node_id, e.target_node_id).where(
+        e.repository_id == repo_id, e.edge_type.in_(FILE_DEPENDENCY_EDGE_TYPES)
+    )
+    return list(
+        {
+            (src, dst)
+            for src, dst in (await session.execute(q)).all()
+            if src != dst and "::" not in src + dst and not dst.startswith("external:")
+        }
+    )
 
 
 async def coupling_answer(
@@ -142,10 +171,11 @@ def area_coupling_payload(
     """Area pairs and per-area totals under the scope."""
     scope = _resolved(model, scope)
     placed = place_edges(model.edges, scope, is_test=model.is_test)
+    linked = linked_area_pairs(model.dependencies, area_placer(scope))
     return {
         "root": scope.root,
         "depth": scope.depth,
-        **area_coupling(placed, limit=limit, top_pairs=top_pairs),
+        **area_coupling(placed, linked=linked, limit=limit, top_pairs=top_pairs),
     }
 
 
@@ -154,5 +184,19 @@ def coupled_areas_for(model: CouplingModel, area: str) -> list[dict[str, Any]]:
     return coupled_areas(
         model.edges,
         area,
+        dependencies=model.dependencies,
         keep=lambda e: not (model.is_test(e.source) or model.is_test(e.target)),
     )
+
+
+async def warm_coupling_model(
+    session_factory: async_sessionmaker[AsyncSession], repo_id: str
+) -> None:
+    """Fold *repo_id*'s co-change edges now, so the first reader after an index
+    run does not pay for it. Best effort, as the area model's warm is; an
+    index written outside this process is still folded on first read."""
+    try:
+        async with get_session(session_factory) as session:
+            await _model(session, repo_id, await _models.key(session, repo_id))
+    except Exception:
+        logger.warning("coupling_warm_failed", repo_id=repo_id, exc_info=True)

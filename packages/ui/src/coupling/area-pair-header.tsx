@@ -42,7 +42,7 @@ export function AreaPairHeader({ selection, opened, copy, onBack, onPrompt }: Ar
             </p>
           )}
         </div>
-        {opened && opened.unexplained_pairs > 0 && (
+        {opened?.hidden && (
           <AiPromptButton label={copy.promptLabel} onClick={() => onPrompt([opened])} />
         )}
       </div>

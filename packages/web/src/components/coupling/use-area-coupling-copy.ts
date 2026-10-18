@@ -15,6 +15,8 @@ export function useAreaCouplingCopy(): AreaCouplingCopyOverrides {
         t(testsIncluded ? "scopeWithTests" : "scope", { pairs, depth }),
       cleanTitle: (depth: number) => t("cleanTitle", { depth }),
       cleanBody: (pairs: number) => (pairs > 0 ? t("cleanBody", { pairs }) : t("cleanEmpty")),
+      unchecked: t("unchecked"),
+      hiddenMark: t("hiddenMark"),
       showing: (shown: number, total: number) => t("showing", { shown, total }),
       filePairs: (count: number) => t("filePairs", { count }),
       coChanges: (count: number) => t("coChanges", { count }),

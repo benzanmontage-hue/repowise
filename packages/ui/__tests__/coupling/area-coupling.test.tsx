@@ -16,8 +16,16 @@ import {
 import { couplingIntensityByArea, couplingIntensityByFile } from "../../src/coupling/lens.js";
 import { buildAreaCouplingAiPrompt } from "../../src/health/ai-prompt-builder.js";
 
-function areaPair(source: string, target: string, unexplained: number, pairs = 10): CouplingAreaPair {
+function areaPair(
+  source: string,
+  target: string,
+  unexplained: number,
+  pairs = 10,
+  linked = false,
+): CouplingAreaPair {
   return {
+    linked,
+    hidden: !linked && unexplained > 0,
     source,
     target,
     pairs,
@@ -40,6 +48,8 @@ function response(pairs: CouplingAreaPair[]): CouplingAreasResponse {
       unexplained_pairs: pairs.reduce((n, p) => n + p.unexplained_pairs, 0),
       area_pairs: pairs.length + 3,
       unexplained_area_pairs: pairs.filter((p) => p.unexplained_pairs > 0).length,
+      hidden_area_pairs: pairs.filter((p) => p.hidden).length,
+      unlabelled_pairs: 0,
     },
     areas: [],
     area_pairs: pairs,
@@ -62,27 +72,42 @@ function renderList(data: CouplingAreasResponse) {
 }
 
 describe("CouplingAreaPairList", () => {
-  it("leads with the verdict and opens an area pair", () => {
-    const pairs = [areaPair("packages/ui", "packages/web", 7), areaPair("docs", "packages/core", 0)];
+  it("marks only area pairs with no dependency between them", () => {
+    const pairs = [
+      areaPair("packages/server", "packages/ui", 7),
+      areaPair("packages/ui", "packages/web", 9, 10, true),
+      areaPair("docs", "packages/core", 0),
+    ];
     const { onOpen, onPrompt } = renderList(response(pairs));
-    expect(screen.getByText(/This area pair changes together with no import link/)).toBeTruthy();
+    expect(screen.getByText(/This area pair changes together although no file in one imports/)).toBeTruthy();
     expect(screen.getByText(/Test files are left out/)).toBeTruthy();
-    expect(screen.getByText("7 unexplained (70%)")).toBeTruthy();
-    // The explained pair carries no prompt and no warning mark.
+    // One mark, on the hidden pair; the layered pair reads as plain figures.
+    expect(screen.getAllByText("No import link between the areas")).toHaveLength(1);
+    expect(screen.getByText("9 file pairs with no direct import (90%)")).toBeTruthy();
     expect(screen.getByText("All explained")).toBeTruthy();
-    expect(screen.getAllByRole("button", { name: "Copy prompt for your agent" })).toHaveLength(1);
-    expect(screen.getByText(/Showing the top 2 of 5 area pairs/)).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: /^Copy prompt for your agent/ })).toHaveLength(1);
+    expect(screen.getByText(/Showing the top 3 of 6 area pairs/)).toBeTruthy();
 
-    fireEvent.click(screen.getByText("packages/ui/ ↔ packages/web/"));
-    expect(onOpen).toHaveBeenCalledWith({ source: "packages/ui", target: "packages/web" });
+    fireEvent.click(screen.getByText("packages/server/ ↔ packages/ui/"));
+    expect(onOpen).toHaveBeenCalledWith({ source: "packages/server", target: "packages/ui" });
     fireEvent.click(screen.getByRole("button", { name: "Copy prompt for these 1" }));
     expect(onPrompt).toHaveBeenCalledWith([pairs[0]]);
   });
 
   it("names a clean result with its scope", () => {
-    renderList(response([areaPair("docs", "packages/core", 0)]));
-    expect(screen.getByText("No hidden coupling between areas 2 levels down")).toBeTruthy();
-    expect(screen.getByText(/Every one of the 20 file pairs/)).toBeTruthy();
+    renderList(response([areaPair("packages/ui", "packages/web", 4, 10, true)]));
+    expect(
+      screen.getByText("Every area pair that changes together also has an import link, 2 levels down"),
+    ).toBeTruthy();
+    expect(screen.getByText(/Checked 20 file pairs/)).toBeTruthy();
+  });
+
+  it("gives no verdict on an index that predates the dependency check", () => {
+    const data = response([areaPair("a", "b", 0)]);
+    data.totals.unlabelled_pairs = data.totals.pairs;
+    renderList(data);
+    expect(screen.getByText(/predates the dependency check/)).toBeTruthy();
+    expect(screen.queryByText(/Every area pair/)).toBeNull();
   });
 });
 
@@ -148,7 +173,7 @@ describe("buildAreaCouplingAiPrompt", () => {
     });
     expect(prompt).toContain("## Hidden coupling between areas (`repowise`)");
     expect(prompt).toContain("### `packages/server/` ↔ `packages/types/`");
-    expect(prompt).toContain("**5** have no import");
+    expect(prompt).toContain("no dependency joins the two areas in either direction; **5**");
     expect(prompt).toContain("`packages/server/a.py` ↔ `packages/types/a.ts` (no dependency joins them, 9 shared commits)");
   });
 });
