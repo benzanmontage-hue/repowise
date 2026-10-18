@@ -76,3 +76,7 @@ export {
   type FileHealthPromptInput,
   type FileHealthPromptSignals,
 } from "./ai-prompts/file-health-prompt";
+export {
+  buildPerformanceAreaPrompt,
+  type BuildPerformanceAreaPromptOptions,
+} from "./ai-prompts/performance-area-prompt";

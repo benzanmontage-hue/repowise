@@ -5,6 +5,7 @@ import type { PerformanceOpportunitySummary } from "@repowise-dev/types/health";
 
 import { EmptyState } from "../../shared/empty-state";
 import { Skeleton, SkeletonRegion } from "../../ui/skeleton";
+import type { ExcludedReview } from "./grouping";
 
 /**
  * Every state the queue can be in other than "here are the rows". They are
@@ -54,14 +55,69 @@ export function UnavailableQueue({ summary }: { summary: PerformanceOpportunityS
   );
 }
 
-/** Analyzed, and nothing supported surfaced. Say exactly that. */
-export function EmptyQueue() {
+/** The review links for what the default queue left out, as one line. */
+export function LeftOut({
+  reviews,
+  onReview,
+}: {
+  reviews: ExcludedReview[];
+  onReview: (review: ExcludedReview) => void;
+}) {
+  if (reviews.length === 0) return null;
+  const total = reviews.reduce((sum, review) => sum + review.count, 0);
+  return (
+    <p className="text-xs text-[var(--color-text-tertiary)]">
+      <span className="tabular-nums">{total.toLocaleString()}</span> causes left out of this
+      queue:{" "}
+      {reviews.map((review, index) => (
+        <span key={review.reason}>
+          {index > 0 ? ", " : ""}
+          <button
+            type="button"
+            onClick={() => onReview(review)}
+            className="rounded text-[var(--color-accent-primary)] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-primary)]"
+          >
+            <span className="tabular-nums">{review.count.toLocaleString()}</span> {review.label}
+          </button>
+        </span>
+      ))}
+      .
+    </p>
+  );
+}
+
+/**
+ * Analyzed, and nothing in this view needs a change: the good state. It names
+ * the scope and commit it holds for, and what was left out, so "clear" is a
+ * statement about something specific and the reader can check the rest.
+ */
+export function GoodState({
+  scope,
+  analyzedCommit,
+  repositoryTotal,
+  reviews,
+  onReview,
+}: {
+  /** "production code", "all code". */
+  scope: string;
+  analyzedCommit: string | null | undefined;
+  repositoryTotal: number;
+  reviews: ExcludedReview[];
+  onReview: (review: ExcludedReview) => void;
+}) {
+  const at = analyzedCommit ? ` at ${analyzedCommit.slice(0, 7)}` : "";
   return (
     <EmptyState
       tone="positive"
-      title="No supported pattern surfaced"
-      description="The detectors are high precision and low recall, so an empty queue means nothing they recognize was found. It does not measure latency and does not claim the code is fast."
-    />
+      title={`No actionable performance issues in ${scope}${at}`}
+      description={
+        repositoryTotal > 0
+          ? `${repositoryTotal.toLocaleString()} causes analysed across the repository, none of them a change worth making here now. The detectors read code shape, not latency.`
+          : "Nothing the detectors recognise was found. They read code shape, not latency, and are high precision and low recall."
+      }
+    >
+      <LeftOut reviews={reviews} onReview={onReview} />
+    </EmptyState>
   );
 }
 

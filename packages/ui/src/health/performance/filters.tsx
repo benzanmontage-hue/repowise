@@ -8,17 +8,18 @@ import type {
   PerformanceFacets,
 } from "@repowise-dev/types/health";
 
+import { useState } from "react";
+import { ChevronRight, X } from "lucide-react";
+
 import { FilterSelect } from "../code-health-controls";
 import { ViewTabs } from "../../shared/view-tabs";
 import {
-  CONTEXT_HINT,
   CONTEXT_ORDER,
   FACET_LABEL,
   contextLabel,
   facetValueLabel,
 } from "./presentation";
 import {
-  narrowingCount,
   type NarrowingKey,
   type PerformanceFilterState,
   type PerformanceSort,
@@ -85,15 +86,16 @@ export function ContextTabs({
 }
 
 interface NarrowingSpec {
-  key: NarrowingKey;
+  key: Exclude<NarrowingKey, "actionability">;
   facet: PerformanceFacetKey;
   anyLabel: string;
 }
 
+/**
+ * The server filters behind "More filters". Actionability is not among them:
+ * the actionability bar is that axis's one control.
+ */
 const NARROWING: NarrowingSpec[] = [
-  // "expected" causes are real but offer nothing to change, so the default
-  // (no explicit selection) reads as "every other state" rather than "any".
-  { key: "actionability", facet: "actionability", anyLabel: "All but expected" },
   { key: "boundary", facet: "boundary", anyLabel: "Any" },
   { key: "confidence", facet: "confidence", anyLabel: "Any" },
   // Unproven causes (loop size unknown) are counted but never queued by default.
@@ -119,98 +121,106 @@ function SingleValueFact({ facet, only }: { facet: PerformanceFacetKey; only: Pe
   );
 }
 
-export function QueueFilters({
+/**
+ * Context and sort stay visible; the rest of the server filters sit behind
+ * one disclosure, which states how many are active while it is closed.
+ */
+export function MoreFilters({
   filters,
   facets,
   onChange,
-  onClear,
 }: {
   filters: PerformanceFilterState;
   facets: PerformanceFacets;
   onChange: (key: NarrowingKey, value: string | null) => void;
-  onClear: () => void;
 }) {
-  const active = narrowingCount(filters);
+  const [open, setOpen] = useState(false);
+  const active = NARROWING.filter(({ key }) => filters[key] !== null).length;
+  const controls = NARROWING.map(({ key, facet, anyLabel }) => {
+    const counts = facets[facet] ?? [];
+    if (counts.length === 0) return null;
+    if (counts.length === 1 && !filters[key]) {
+      return <SingleValueFact key={key} facet={facet} only={counts[0]!} />;
+    }
+    return (
+      <FilterSelect
+        key={key}
+        label={FACET_LABEL[facet]}
+        value={filters[key] ?? ""}
+        onChange={(next) => onChange(key, next || null)}
+        options={[
+          { value: "", label: anyLabel },
+          ...counts.map((entry) => ({
+            value: entry.value,
+            label: `${facetValueLabel(facet, entry.value)} (${entry.total.toLocaleString()})`,
+          })),
+        ]}
+      />
+    );
+  }).filter(Boolean);
+  if (controls.length === 0) return null;
   return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-      {NARROWING.map(({ key, facet, anyLabel }) => {
-        const counts = facets[facet] ?? [];
-        if (counts.length === 0) return null;
-        if (counts.length === 1 && !filters[key]) {
-          return <SingleValueFact key={key} facet={facet} only={counts[0]!} />;
-        }
-        return (
-          <FilterSelect
-            key={key}
-            label={FACET_LABEL[facet]}
-            value={filters[key] ?? ""}
-            onChange={(next) => onChange(key, next || null)}
-            options={[
-              { value: "", label: anyLabel },
-              ...counts.map((entry) => ({
-                value: entry.value,
-                label: `${facetValueLabel(facet, entry.value)} (${entry.total.toLocaleString()})`,
-              })),
-            ]}
-          />
-        );
-      })}
-      {active > 0 ? (
-        <button
-          type="button"
-          onClick={onClear}
-          className="rounded text-xs font-medium text-[var(--color-accent-primary)] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-primary)]"
-        >
-          Clear {active} filter{active === 1 ? "" : "s"}
-        </button>
-      ) : null}
+    <div className="min-w-0">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        className="inline-flex items-center gap-1 rounded text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-primary)]"
+      >
+        <ChevronRight
+          aria-hidden="true"
+          className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-90" : ""}`}
+        />
+        More filters
+        {active > 0 ? <span className="tabular-nums text-[var(--color-text-tertiary)]">({active})</span> : null}
+      </button>
+      {open ? <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-3">{controls}</div> : null}
     </div>
   );
 }
 
-/**
- * What the queue currently describes, and what it was drawn from. The
- * per-page range is the pagination control's job, so this states only what
- * that control cannot: how the selection narrows the repository, and when the
- * answer was computed.
- */
-export function ScopeLine({
-  filteredTotal,
-  repositoryTotal,
-  context,
-  narrowed,
-  analyzedCommit,
-}: {
-  filteredTotal: number;
-  repositoryTotal: number;
-  context: PerformanceContextFilter;
-  narrowed: number;
-  analyzedCommit?: string | null | undefined;
-}) {
-  const noun = filteredTotal === 1 ? "opportunity" : "opportunities";
-  const scope =
-    context === "all"
-      ? noun
-      : `${contextLabel(context as PerformanceExecutionContext).toLowerCase()} ${noun}`;
+export interface ActiveChip {
+  key: string;
+  label: string;
+  onRemove: () => void;
+}
+
+/** Every active narrowing, server or view, as a chip that removes it. */
+export function ActiveChips({ chips, onClearAll }: { chips: ActiveChip[]; onClearAll: () => void }) {
+  if (chips.length === 0) return null;
   return (
-    <p role="status" className="text-xs text-[var(--color-text-tertiary)]">
-      <span className="tabular-nums">{filteredTotal.toLocaleString()}</span> {scope}
-      {narrowed > 0 ? ` under ${narrowed} filter${narrowed === 1 ? "" : "s"}` : ""}
-      {filteredTotal !== repositoryTotal ? (
-        <>
-          , from <span className="tabular-nums">{repositoryTotal.toLocaleString()}</span> in the
-          repository
-        </>
+    <ul aria-label="Active filters" className="flex flex-wrap items-center gap-2">
+      {chips.map((chip) => (
+        <li key={chip.key}>
+          <button
+            type="button"
+            onClick={chip.onRemove}
+            aria-label={`Remove filter ${chip.label}`}
+            className="inline-flex items-center gap-1 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-2.5 py-0.5 text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-primary)]"
+          >
+            {chip.label}
+            <X aria-hidden="true" className="h-3 w-3" />
+          </button>
+        </li>
+      ))}
+      {chips.length > 1 ? (
+        <li>
+          <button
+            type="button"
+            onClick={onClearAll}
+            className="rounded text-xs font-medium text-[var(--color-accent-primary)] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-primary)]"
+          >
+            Clear all
+          </button>
+        </li>
       ) : null}
-      .
-      {analyzedCommit ? (
-        <>
-          {" "}
-          Analyzed at <span className="font-mono">{analyzedCommit.slice(0, 7)}</span>.
-        </>
-      ) : null}
-    </p>
+    </ul>
   );
+}
+
+/** The chip label for one active narrowing, "Boundary: Database". */
+export function narrowingChipLabel(key: NarrowingKey, value: string): string {
+  return `${FACET_LABEL[key]}: ${facetValueLabel(key, value)}`;
 }
 
 const SORT_OPTIONS: { value: PerformanceSort; label: string }[] = [
@@ -235,14 +245,5 @@ export function SortControl({
       onChange={(next) => onChange(next as PerformanceSort)}
       options={SORT_OPTIONS}
     />
-  );
-}
-
-export function ContextHint({ context }: { context: PerformanceContextFilter }) {
-  if (context === "all") return null;
-  return (
-    <p className="text-xs text-[var(--color-text-tertiary)]">
-      {CONTEXT_HINT[context as PerformanceExecutionContext]}
-    </p>
   );
 }

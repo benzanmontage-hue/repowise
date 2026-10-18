@@ -9,12 +9,13 @@ import type {
 } from "@repowise-dev/types/health";
 
 /**
- * The queue's filter state, and its round trip to a query string.
+ * The tab's view state, its server query, and its round trip to the URL.
  *
- * Every field here is a parameter the server answers, so narrowing is always a
- * refetch and never a filter over the loaded page. A page can be a slice of a
- * much larger result, so filtering it on the client would answer a different
- * question than the count beside it.
+ * Two kinds of field. The server fields (context, the narrowing filters,
+ * sort, page) decide which causes exist, so changing one is a refetch. The
+ * view fields (`state`, `area`) narrow the loaded result on the client, which
+ * is honest because the tab loads the whole result in one page whenever it
+ * fits, and says so when it does not.
  */
 
 export type PerformanceSort = NonNullable<PerformanceOpportunityQuery["sort"]>;
@@ -23,18 +24,26 @@ export interface PerformanceFilterState {
   context: PerformanceContextFilter;
   boundary: string | null;
   confidence: PerformanceOpportunityConfidence | null;
+  /** A server-side state filter, set by the "left out" review links. */
   actionability: PerformanceActionabilityState | null;
   proof: PerformanceCostProof | null;
   role: PerformanceExecutionRole | "all" | null;
   sort: PerformanceSort;
-  offset: number;
+  /** 1-based page of `PAGE_SIZE` causes. */
+  page: number;
+  /** The actionability segment shown, over the loaded result. */
+  state: PerformanceActionabilityState | null;
+  /** One area opened on its own, every cause in it listed. */
+  area: string | null;
 }
+
+/** The server's page ceiling: a default queue fits in one page almost always. */
+export const PAGE_SIZE = 100;
 
 /**
  * Production is the default view. Most of what the analysis finds sits in
  * tests, benchmarks and CI scripts, and "this benchmark repeats work" is a
- * fact about a benchmark rather than work to schedule. Every other context
- * stays one tab away and keeps its count in the tab row.
+ * fact about a benchmark rather than work to schedule.
  */
 export const INITIAL_FILTERS: PerformanceFilterState = {
   context: "production",
@@ -44,11 +53,13 @@ export const INITIAL_FILTERS: PerformanceFilterState = {
   proof: null,
   role: null,
   sort: "rank",
-  offset: 0,
+  page: 1,
+  state: null,
+  area: null,
 };
 
-/** The narrowing filters, apart from context, which is a permanent tab row. */
-const NARROWING_KEYS = ["boundary", "confidence", "actionability", "proof", "role"] as const;
+/** The server filters behind "More filters", apart from context. */
+export const NARROWING_KEYS = ["boundary", "confidence", "actionability", "proof", "role"] as const;
 export type NarrowingKey = (typeof NARROWING_KEYS)[number];
 
 const SORTS: readonly PerformanceSort[] = ["rank", "leverage", "observations"];
@@ -70,7 +81,9 @@ const CONTEXTS: readonly PerformanceContextFilter[] = [
 ];
 
 /**
- * Build the server query. `collapseContexts` is set only when the server
+ * Build the server query. Rows use the `summary` view: it carries what a row
+ * is acted on by (fix, gain, effort) and leaves plan steps and validation to
+ * the drawer's detail fetch. `collapseContexts` is set only when the server
  * predates the canonical vocabulary, and is the one place the retired
  * `production_tooling` spelling may be emitted.
  */
@@ -84,10 +97,10 @@ export function toQuery(
       : state.context;
   const query: PerformanceOpportunityQuery = {
     context,
-    view: "detail",
+    view: "summary",
     sort: state.sort,
     limit: options.limit,
-    offset: state.offset,
+    offset: (state.page - 1) * options.limit,
   };
   if (state.boundary) query.boundary = state.boundary;
   if (state.confidence) query.confidence = state.confidence;
@@ -98,64 +111,130 @@ export function toQuery(
 }
 
 /**
- * A stable string for the state. Keys are written in a fixed order and
- * defaults are omitted, so an unchanged filter set always produces the same
- * cache key and the same shareable link. Context is the exception and is
- * always written, because it is the one default that decides which rows exist
- * rather than how they are shown.
+ * The URL parameters this tab owns, flat beside the page's own. `ctx` is
+ * always written: a link that omits it would be read under whatever the
+ * default is when it is opened. Every other default is omitted.
  */
-export function serializeFilters(state: PerformanceFilterState): string {
-  const params = new URLSearchParams();
-  // Always written, unlike the other defaults: a link that omits it would be
-  // read under whatever the default is when it is opened, so a shared link
-  // would change meaning if that default ever moved again.
-  params.set("context", state.context);
-  if (state.boundary) params.set("boundary", state.boundary);
-  if (state.confidence) params.set("confidence", state.confidence);
-  if (state.actionability) params.set("actionability", state.actionability);
-  if (state.proof) params.set("proof", state.proof);
-  if (state.role) params.set("role", state.role);
-  if (state.sort !== INITIAL_FILTERS.sort) params.set("sort", state.sort);
-  if (state.offset > 0) params.set("offset", String(state.offset));
-  return params.toString();
+const PARAM = {
+  context: "ctx",
+  boundary: "boundary",
+  confidence: "confidence",
+  actionability: "actionability",
+  proof: "proof",
+  role: "role",
+  sort: "sort",
+  page: "page",
+  state: "state",
+  area: "area",
+} as const satisfies Record<keyof PerformanceFilterState, string>;
+
+/** The retired single-parameter blob, still read so old links open. */
+export const LEGACY_PARAM = "perf";
+
+/** A stable string for the server half of the state: the queue's cache key. */
+export function serverKey(state: PerformanceFilterState): string {
+  return [
+    state.context,
+    ...NARROWING_KEYS.map((key) => state[key] ?? ""),
+    state.sort,
+    state.page,
+  ].join("|");
+}
+
+/** Write the state onto `params` in place, removing defaults and the legacy blob. */
+export function writeFilters(state: PerformanceFilterState, params: URLSearchParams): void {
+  params.delete(LEGACY_PARAM);
+  params.set(PARAM.context, state.context);
+  for (const key of [...NARROWING_KEYS, "state", "area"] as const) {
+    const value = state[key];
+    if (value) params.set(PARAM[key], value);
+    else params.delete(PARAM[key]);
+  }
+  if (state.sort !== INITIAL_FILTERS.sort) params.set(PARAM.sort, state.sort);
+  else params.delete(PARAM.sort);
+  if (state.page > 1) params.set(PARAM.page, String(state.page));
+  else params.delete(PARAM.page);
 }
 
 function oneOf<T extends string>(value: string | null, allowed: readonly T[]): T | null {
   return value && (allowed as readonly string[]).includes(value) ? (value as T) : null;
 }
 
-/**
- * Read the state back. An unrecognized value falls back to the default rather
- * than being forwarded to the server, so a hand-edited link cannot make the
- * queue look empty.
- */
-export function parseFilters(search: string | URLSearchParams): PerformanceFilterState {
-  const params = typeof search === "string" ? new URLSearchParams(search) : search;
-  const offset = Number.parseInt(params.get("offset") ?? "", 10);
+function positive(value: string | null): number | null {
+  const n = Number.parseInt(value ?? "", 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/** The server half of the state, from any parameter spelling. */
+function serverFields(params: URLSearchParams, contextParam: string) {
   return {
-    context: oneOf(params.get("context"), CONTEXTS) ?? INITIAL_FILTERS.context,
+    context: oneOf(params.get(contextParam), CONTEXTS) ?? INITIAL_FILTERS.context,
     boundary: params.get("boundary") || null,
     confidence: oneOf(params.get("confidence"), CONFIDENCES),
     actionability: oneOf(params.get("actionability"), ACTIONABILITIES),
     proof: oneOf(params.get("proof"), PROOFS),
     role: oneOf(params.get("role"), ROLES),
     sort: oneOf(params.get("sort"), SORTS) ?? INITIAL_FILTERS.sort,
-    offset: Number.isFinite(offset) && offset > 0 ? offset : 0,
   };
 }
 
-/** Change one filter. Any narrowing change returns to the first page. */
+/**
+ * Read the state back from the page's parameters. An unrecognized value falls
+ * back to the default rather than reaching the server, so a hand-edited link
+ * cannot make the queue look empty. A link minted before the flat schema
+ * carries everything in `perf`, and is read from there.
+ */
+export function readFilters(params: URLSearchParams): PerformanceFilterState {
+  const legacy = params.get(LEGACY_PARAM);
+  if (legacy !== null && !params.has(PARAM.context)) return parseLegacyFilters(legacy);
+  return {
+    ...serverFields(params, PARAM.context),
+    page: positive(params.get(PARAM.page)) ?? 1,
+    state: oneOf(params.get(PARAM.state), ACTIONABILITIES),
+    area: params.get(PARAM.area) ?? null,
+  };
+}
+
+/** The pre-flat `perf=context%3D...%26offset%3D40` blob. */
+export function parseLegacyFilters(blob: string): PerformanceFilterState {
+  const params = new URLSearchParams(blob);
+  const offset = positive(params.get("offset")) ?? 0;
+  return {
+    ...INITIAL_FILTERS,
+    ...serverFields(params, "context"),
+    page: Math.floor(offset / PAGE_SIZE) + 1,
+  };
+}
+
+/**
+ * Change one field. A server filter returns to the first page and drops the
+ * view filters, whose values may not exist in the new result.
+ */
 export function withFilter<K extends keyof PerformanceFilterState>(
   state: PerformanceFilterState,
   key: K,
   value: PerformanceFilterState[K],
 ): PerformanceFilterState {
-  if (key === "offset") return { ...state, offset: value as number };
-  return { ...state, [key]: value, offset: 0 };
+  if (key === "page" || key === "state" || key === "area") return { ...state, [key]: value };
+  return withFilters(state, { [key]: value });
+}
+
+/** Apply several server filters as one change. */
+export function withFilters(
+  state: PerformanceFilterState,
+  patch: Partial<PerformanceFilterState>,
+): PerformanceFilterState {
+  return { ...state, ...patch, page: 1, state: null, area: null };
 }
 
 export function clearNarrowing(state: PerformanceFilterState): PerformanceFilterState {
-  return { ...state, boundary: null, confidence: null, actionability: null, proof: null, role: null, offset: 0 };
+  return withFilters(state, {
+    boundary: null,
+    confidence: null,
+    actionability: null,
+    proof: null,
+    role: null,
+  });
 }
 
 export function narrowingCount(state: PerformanceFilterState): number {
