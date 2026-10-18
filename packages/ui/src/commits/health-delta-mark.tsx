@@ -34,6 +34,11 @@ const TEXT: Record<HealthDeltaKind, string> = {
   neutral: "text-[var(--color-text-tertiary)]",
 };
 
+/** "+3", "−2" or "+3 −1": the signed finding counts behind the word. */
+export function signedFigures(better: number, worse: number): string {
+  return [better > 0 ? `+${better}` : "", worse > 0 ? `−${worse}` : ""].filter(Boolean).join(" ");
+}
+
 export interface HealthDeltaMarkProps {
   /** Null when the commit or change was never compared, which is not the
    *  same claim as "changed nothing". */
@@ -58,27 +63,20 @@ export function HealthDeltaMark({ delta, labels, className }: HealthDeltaMarkPro
     );
   }
   const kind = healthDeltaKind(delta);
-  const better = betterCount(delta);
-  const worse = worseCount(delta);
   const partial = delta.status === "partial";
+  const quiet = kind === "neutral";
   return (
     <span
       className={cn("inline-flex items-center gap-1.5 whitespace-nowrap text-xs", TEXT[kind], className)}
       title={partial ? l.partial : undefined}
     >
-      {kind !== "neutral" && (
-        <span aria-hidden className={cn("h-1.5 w-1.5 shrink-0 rounded-full", DOT[kind])} />
-      )}
-      <span className={kind === "neutral" ? undefined : "font-medium"}>
+      {!quiet && <span aria-hidden className={cn("h-1.5 w-1.5 shrink-0 rounded-full", DOT[kind])} />}
+      <span className={quiet ? undefined : "font-medium"}>
         {l[kind]}
         {partial && <span aria-hidden>*</span>}
       </span>
-      {kind !== "neutral" && (
-        <span className="font-mono tabular-nums">
-          {better > 0 && `+${better}`}
-          {better > 0 && worse > 0 && " "}
-          {worse > 0 && `−${worse}`}
-        </span>
+      {!quiet && (
+        <span className="font-mono tabular-nums">{signedFigures(betterCount(delta), worseCount(delta))}</span>
       )}
       {partial && <span className="sr-only">{l.partial}</span>}
     </span>
