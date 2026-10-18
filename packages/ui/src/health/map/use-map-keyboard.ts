@@ -50,6 +50,69 @@ export function useKeyboardCursor(index: AreaIndex, scene: FieldScene, area: str
 
 export type KeyboardCursor = ReturnType<typeof useKeyboardCursor>;
 
+const hasChord = (e: { ctrlKey: boolean; metaKey: boolean; altKey: boolean }) => e.ctrlKey || e.metaKey || e.altKey;
+
+/** What one key does in the field, or null when it is not the map's. Pure. */
+export type KeyAction =
+  | { kind: "zoom"; factor: number }
+  | { kind: "root" }
+  | { kind: "move"; forward: boolean }
+  | { kind: "open" };
+
+const KEY_ACTIONS: Record<string, KeyAction> = {
+  "+": { kind: "zoom", factor: ZOOM_STEP },
+  "=": { kind: "zoom", factor: ZOOM_STEP },
+  "-": { kind: "zoom", factor: 1 / ZOOM_STEP },
+  _: { kind: "zoom", factor: 1 / ZOOM_STEP },
+  "0": { kind: "root" },
+  ArrowRight: { kind: "move", forward: true },
+  ArrowDown: { kind: "move", forward: true },
+  ArrowLeft: { kind: "move", forward: false },
+  ArrowUp: { kind: "move", forward: false },
+  Enter: { kind: "open" },
+};
+
+/** Browser zoom and other chords stay the browser's. */
+export function keyAction(e: { key: string; ctrlKey: boolean; metaKey: boolean; altKey: boolean }): KeyAction | null {
+  return hasChord(e) ? null : (KEY_ACTIONS[e.key] ?? null);
+}
+
+/** Escape and Backspace climb, but only from inside the field and never out of a text box. */
+function climbKey(e: KeyboardEvent, container: HTMLElement | null): "root" | "up" | null {
+  if ((e.key !== "Escape" && e.key !== "Backspace") || hasChord(e)) return null;
+  const t = e.target;
+  if (!container || !(t instanceof Node) || !container.contains(t)) return null;
+  if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement) return null;
+  return e.key === "Escape" ? "root" : "up";
+}
+
+/**
+ * Escape returns to the repository and Backspace climbs one level, consumed
+ * in the capture phase so one press never also closes something behind.
+ */
+function useClimbKeys(
+  container: RefObject<HTMLElement | null>,
+  index: AreaIndex,
+  area: string,
+  onSelectArea: (path: string) => void,
+) {
+  const climb = useRef({ area, parent: displayParent(index, area), select: onSelectArea });
+  climb.current = { area, parent: displayParent(index, area), select: onSelectArea };
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onKey = (e: KeyboardEvent) => {
+      const which = climbKey(e, container.current);
+      const { area: here, parent, select } = climb.current;
+      if (!which || here === ROOT_AREA) return;
+      e.stopPropagation();
+      e.preventDefault();
+      select(which === "root" ? ROOT_AREA : (parent ?? ROOT_AREA));
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [container]);
+}
+
 export function useMapKeyboard(opts: {
   container: RefObject<HTMLElement | null>;
   kb: KeyboardCursor;
@@ -60,52 +123,22 @@ export function useMapKeyboard(opts: {
   onSelectFile: (path: string) => void;
 }) {
   const { container, kb, index, area, camera, onSelectArea, onSelectFile } = opts;
+  useClimbKeys(container, index, area, onSelectArea);
 
-  const onKeyDown = useCallback(
+  return useCallback(
     (e: ReactKeyboardEvent) => {
-      // Browser zoom and other chords stay the browser's.
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
-      const forward = e.key === "ArrowRight" || e.key === "ArrowDown";
-      const back = e.key === "ArrowLeft" || e.key === "ArrowUp";
-      if (e.key === "+" || e.key === "=") camera.zoomBy(ZOOM_STEP);
-      else if (e.key === "-" || e.key === "_") camera.zoomBy(1 / ZOOM_STEP);
-      else if (e.key === "0") onSelectArea(ROOT_AREA);
-      else if (forward || back) {
+      const action = keyAction(e);
+      if (!action || (action.kind === "open" && !kb.item)) return;
+      e.preventDefault();
+      if (action.kind === "zoom") camera.zoomBy(action.factor);
+      else if (action.kind === "root") onSelectArea(ROOT_AREA);
+      else if (action.kind === "move") {
         // A pointer-focused field shows the cursor once the keys are used.
         kb.setFocused(true);
-        kb.setPos((i) => cycle(i, kb.items.length, forward));
-      }
-      else if (e.key === "Enter" && kb.item) {
-        if (kb.item.kind === "area") onSelectArea(kb.item.path);
-        else onSelectFile(kb.item.path);
-      } else return;
-      e.preventDefault();
+        kb.setPos((i) => cycle(i, kb.items.length, action.forward));
+      } else if (kb.item!.kind === "area") onSelectArea(kb.item!.path);
+      else onSelectFile(kb.item!.path);
     },
     [camera, kb, onSelectArea, onSelectFile],
   );
-
-  const climb = useRef({ area, parent: displayParent(index, area) });
-  climb.current = { area, parent: displayParent(index, area) };
-  const selectRef = useRef(onSelectArea);
-  selectRef.current = onSelectArea;
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" && e.key !== "Backspace") return;
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
-      const node = container.current;
-      if (!node || !(e.target instanceof Node) || !node.contains(e.target)) return;
-      // A text field inside the map keeps its own Backspace.
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      const { area: here, parent } = climb.current;
-      if (here === ROOT_AREA) return;
-      e.stopPropagation();
-      e.preventDefault();
-      selectRef.current(e.key === "Escape" ? ROOT_AREA : (parent ?? ROOT_AREA));
-    };
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [container]);
-
-  return onKeyDown;
 }

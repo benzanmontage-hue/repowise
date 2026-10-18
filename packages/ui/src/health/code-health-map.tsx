@@ -26,14 +26,13 @@ import { EmptyState } from "../shared/empty-state";
 import { Breadcrumb } from "../shared/breadcrumb";
 import { usePrefersReducedMotion } from "../hooks/use-prefers-reduced-motion";
 import { ROOT_AREA } from "../lib/areas";
-import { HEALTH_UNSUPPORTED_NOTICE, noFileScored, type MapLens } from "./map/lens";
+import type { MapLens } from "./map/lens";
 import { OVERLAY_ORDER, lensAvailable, resolveLens } from "./map/lens-registry";
 import { deriveAreaIndex } from "./map/areas";
-import { areaTrail, chainEnd, displayLabel } from "./map/area-paths";
-import { AreaHoverCard, HoverCard } from "./map/overlay";
-import { AreaLabels, type AreaLabel } from "./map/labels";
+import { chainEnd, displayLabel } from "./map/area-paths";
+import { AreaLabels } from "./map/labels";
+import { FieldHover, FieldNotes, useAreaChrome } from "./map/field-notes";
 import { CanvasChrome, ZoomControls } from "./map/controls";
-import { LoadedNote, MapScopeNote } from "./map/scope-note";
 import { useFieldModel } from "./map/use-field-model";
 import { useFieldCanvas } from "./map/use-field-canvas";
 import { ZOOM_STEP, useMapCamera } from "./map/use-map-camera";
@@ -266,24 +265,7 @@ export function CodeHealthMap({
     onSelectFile: handleSelectFile,
   });
 
-  const labels = useMemo<AreaLabel[]>(
-    () =>
-      [...geo.circles.keys()]
-        .filter((p) => p !== ROOT_AREA)
-        .map((path) => {
-          const a = index.areas.get(path)!;
-          return { path, name: displayLabel(index, path, rootLabel), text: lens.areaText?.(a) ?? null };
-        }),
-    [geo, index, lens, rootLabel],
-  );
-  const trail = useMemo(
-    () =>
-      areaTrail(index, selected).map((path, i, all) => ({
-        label: displayLabel(index, path, rootLabel),
-        ...(i < all.length - 1 ? { onSelect: () => handleSelectArea(path) } : {}),
-      })),
-    [index, selected, rootLabel, handleSelectArea],
-  );
+  const { labels, trail } = useAreaChrome(index, geo, lens, selected, rootLabel, handleSelectArea);
   const offered = useMemo(
     () => lenses.filter((l) => lensAvailable(l, fieldFiles, index)),
     [lenses, fieldFiles, index],
@@ -298,6 +280,7 @@ export function CodeHealthMap({
   }
 
   const root = index.areas.get(ROOT_AREA);
+  const flatActions = { drawMoreStep, pending, onDrawMore, onIncludeHeldChange, onFindUndrawn };
   return (
     <div className="flex min-w-0 flex-col gap-2">
       <div data-testid="map-breadcrumb" className="min-h-5 min-w-0 font-mono text-xs">
@@ -373,53 +356,21 @@ export function CodeHealthMap({
           />
         </div>
 
-        {scope && !source ? (
-          <MapScopeNote
-            scope={scope}
-            matches={model.matches.length}
-            query={model.query}
-            drawMoreStep={drawMoreStep}
-            pending={pending}
-            onDrawMore={onDrawMore}
-            onIncludeHeldChange={onIncludeHeldChange}
-            onFindUndrawn={onFindUndrawn}
-          />
-        ) : source && root ? (
-          <LoadedNote loaded={scene.nodes.length} total={root.fileCount} matches={model.query ? model.matches.length : null} />
-        ) : null}
-
-        {!source && noFileScored(files) ? (
-          <div
-            role="status"
-            data-testid="map-unanalysed"
-            className="pointer-events-none absolute bottom-3 left-3 max-w-[64%] rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-glass)] px-2.5 py-1.5 text-xs text-[var(--color-text-secondary)] shadow-sm backdrop-blur-sm sm:max-w-[44%]"
-          >
-            {HEALTH_UNSUPPORTED_NOTICE}
-          </div>
-        ) : null}
-
-        {hover?.kind === "file" ? (
-          <HoverCard
-            file={hover.file}
-            overlay={overlay}
-            x={hover.x}
-            y={hover.y}
-            width={loop.current.view.w}
-            height={loop.current.view.h}
-          />
-        ) : hover?.kind === "area" && index.areas.get(hover.path) ? (
-          <AreaHoverCard
-            area={index.areas.get(hover.path)!}
-            name={displayLabel(index, hover.path, rootLabel)}
-            slot={hover.slot}
-            figure={lens.areaText?.(index.areas.get(hover.path)!) ?? null}
-            lensLabel={lens.label}
-            x={hover.x}
-            y={hover.y}
-            width={loop.current.view.w}
-            height={loop.current.view.h}
-          />
-        ) : null}
+        <FieldNotes
+          flat={source ? null : { files, scope, ...flatActions }}
+          loaded={source && root ? { loaded: scene.nodes.length, total: root.fileCount } : null}
+          matches={model.matches.length}
+          query={model.query}
+        />
+        <FieldHover
+          hover={hover}
+          index={index}
+          lens={lens}
+          overlay={overlay}
+          rootLabel={rootLabel}
+          width={loop.current.view.w}
+          height={loop.current.view.h}
+        />
       </div>
     </div>
   );
