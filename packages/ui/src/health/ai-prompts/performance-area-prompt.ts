@@ -45,6 +45,8 @@ export interface BuildPerformanceAreaPromptOptions {
   /** The directory the causes share; empty for the repository root. */
   area: string;
   opportunities: PerformanceOpportunity[];
+  /** The queue runs past the loaded page, so the area may hold more causes than these. */
+  paged?: boolean;
   flavor?: AiPromptFlavor;
   repoName?: string;
 }
@@ -56,6 +58,7 @@ function causeEntry(c: PerformanceOpportunity, index: number): string {
 export function buildPerformanceAreaPrompt({
   area,
   opportunities,
+  paged = false,
   flavor = "generic",
   repoName,
 }: BuildPerformanceAreaPromptOptions): string {
@@ -70,6 +73,9 @@ export function buildPerformanceAreaPrompt({
     bulletList([
       `Causes: **${opportunities.length}** across ${files.length} file${pluralS(files.length)}.`,
       "Each cause folds every call site that shares one fix, so one edit settles all of them.",
+      paged
+        ? "These are the area's causes on one page of the ranked queue; later pages may hold more in this area."
+        : null,
     ]),
     "",
     shown.map(causeEntry).join("\n\n"),

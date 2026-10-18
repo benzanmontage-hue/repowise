@@ -137,9 +137,11 @@ export function PerformanceView({
     }),
     [select, openPrompt, prompts, prefetch, detailById],
   );
+  // Areas group the loaded page; a prompt says so when the queue runs past it.
+  const paged = data ? data.total > data.items.length : false;
   const onAreaPrompt = useCallback(
-    (area: string, rows: PerformanceOpportunity[]) => openPrompt(prompts.forArea(area, rows)),
-    [openPrompt, prompts],
+    (area: string, rows: PerformanceOpportunity[]) => openPrompt(prompts.forArea(area, rows, paged)),
+    [openPrompt, prompts, paged],
   );
   const onOpenArea = useCallback(
     (area: string) => apply(withFilter(current.current, "area", area)),
@@ -255,7 +257,7 @@ export function PerformanceView({
 
         {items.length > 0 ? (
           <ActionabilityBar
-            paged={data.total > items.length}
+            paged={paged}
             counts={counts}
             value={filters.state}
             onChange={(state) => apply(withFilter(filters, "state", state))}
