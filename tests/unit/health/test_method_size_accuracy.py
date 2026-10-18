@@ -3,16 +3,17 @@
 from __future__ import annotations
 
 from repowise.core.analysis.health.biomarkers import FileContext
+from repowise.core.analysis.health.biomarkers.brain_method import BrainMethodDetector
 from repowise.core.analysis.health.biomarkers.complex_method import ComplexMethodDetector
 from repowise.core.analysis.health.biomarkers.large_method import LargeMethodDetector
 from repowise.core.analysis.health.complexity.models import FunctionComplexity
 from repowise.core.analysis.health.complexity.walker import walk_file
 
 
-def _ctx(*functions: FunctionComplexity, path: str = "src/mod.py") -> FileContext:
+def _ctx(*functions: FunctionComplexity, path: str = "src/mod.py", dependents: int = 0) -> FileContext:
     return FileContext(
         file_path=path, language="python", nloc=200, has_test_file=False, module=None,
-        all_functions=tuple(functions),
+        all_functions=tuple(functions), dependents_count=dependents,
     )
 
 
@@ -49,6 +50,25 @@ def test_complex_method_prints_the_judged_ccn_beside_the_raw_one() -> None:
 def test_complex_method_reason_is_unchanged_without_a_dominant_dispatch() -> None:
     [finding] = ComplexMethodDetector().detect(_ctx(_fn(ccn=12)))
     assert finding.reason == "tokenize has cyclomatic complexity 12"
+    assert "judged_ccn" not in finding.details
+
+
+def test_brain_method_prints_the_judged_ccn_beside_the_raw_one() -> None:
+    # 30 - round(0.6 * 29) + 2 = 15: severity HIGH comes from the judged value.
+    fn = _fn(ccn=30, dispatch_share=0.6, dispatch_arm=2)
+    [finding] = BrainMethodDetector().detect(_ctx(fn, dependents=10))
+    assert finding.severity == "high"
+    assert finding.reason == (
+        "Brain Method: tokenize is 80 lines, CCN 15 (30 counting every arm of its dispatch), "
+        "in a file imported by 10 others"
+    )
+    assert finding.details["ccn"] == 30
+    assert finding.details["judged_ccn"] == 15
+
+
+def test_brain_method_reason_is_unchanged_without_a_dominant_dispatch() -> None:
+    [finding] = BrainMethodDetector().detect(_ctx(_fn(ccn=12), dependents=10))
+    assert finding.reason == "Brain Method: tokenize is 80 lines, CCN 12, in a file imported by 10 others"
     assert "judged_ccn" not in finding.details
 
 
