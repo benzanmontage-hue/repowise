@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { configure, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { RefactoringPlan } from "@repowise-dev/types/refactoring";
 
@@ -11,6 +11,10 @@ import {
   resolvedDetail,
   sibling,
 } from "./fixtures/performance";
+
+// The drawer and the prompt modal load on first open, which takes longer than
+// the default second when the suite runs beside others.
+configure({ asyncUtilTimeout: 5000 });
 
 /** The cause rows, not the chips or other list items on the page. */
 const rows = async () =>
