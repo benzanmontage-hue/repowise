@@ -121,6 +121,36 @@ function SingleValueFact({ facet, only }: { facet: PerformanceFacetKey; only: Pe
   );
 }
 
+/** One server filter: a select over its facet, or a stated fact when it has one value. */
+function NarrowingControl({
+  spec: { key, facet, anyLabel },
+  filters,
+  facets,
+  onChange,
+}: {
+  spec: NarrowingSpec;
+  filters: PerformanceFilterState;
+  facets: PerformanceFacets;
+  onChange: (key: NarrowingKey, value: string | null) => void;
+}) {
+  const counts = facets[facet] ?? [];
+  if (counts.length === 1 && !filters[key]) return <SingleValueFact facet={facet} only={counts[0]!} />;
+  return (
+    <FilterSelect
+      label={FACET_LABEL[facet]}
+      value={filters[key] ?? ""}
+      onChange={(next) => onChange(key, next || null)}
+      options={[
+        { value: "", label: anyLabel },
+        ...counts.map((entry) => ({
+          value: entry.value,
+          label: `${facetValueLabel(facet, entry.value)} (${entry.total.toLocaleString()})`,
+        })),
+      ]}
+    />
+  );
+}
+
 /**
  * Context and sort stay visible; the rest of the server filters sit behind
  * one disclosure, which states how many are active while it is closed.
@@ -136,28 +166,9 @@ export function MoreFilters({
 }) {
   const [open, setOpen] = useState(false);
   const active = NARROWING.filter(({ key }) => filters[key] !== null).length;
-  const controls = NARROWING.map(({ key, facet, anyLabel }) => {
-    const counts = facets[facet] ?? [];
-    if (counts.length === 0) return null;
-    if (counts.length === 1 && !filters[key]) {
-      return <SingleValueFact key={key} facet={facet} only={counts[0]!} />;
-    }
-    return (
-      <FilterSelect
-        key={key}
-        label={FACET_LABEL[facet]}
-        value={filters[key] ?? ""}
-        onChange={(next) => onChange(key, next || null)}
-        options={[
-          { value: "", label: anyLabel },
-          ...counts.map((entry) => ({
-            value: entry.value,
-            label: `${facetValueLabel(facet, entry.value)} (${entry.total.toLocaleString()})`,
-          })),
-        ]}
-      />
-    );
-  }).filter(Boolean);
+  const controls = NARROWING.filter((spec) => (facets[spec.facet] ?? []).length > 0).map((spec) => (
+    <NarrowingControl key={spec.key} spec={spec} filters={filters} facets={facets} onChange={onChange} />
+  ));
   if (controls.length === 0) return null;
   return (
     <div className="min-w-0">

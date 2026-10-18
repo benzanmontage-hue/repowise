@@ -10,8 +10,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
 import { CLICKABLE_ROW_CLS, clickableRowProps } from "../../shared/responsive-table";
 import { AGENT_PROMPT_LABEL } from "../ai-prompt-action";
 import { AiPromptButton } from "../ai-prompt-button";
-import { LowerPriorityTag } from "../lower-priority-tag";
-import { PreviewBadge } from "../preview-badge";
 import type { PerformanceViewAdapter } from "./adapter";
 import {
   affectedSummary,
@@ -24,6 +22,7 @@ import {
   opportunityTitle,
   planPresentation,
 } from "./presentation";
+import { OpportunityTags } from "./tags";
 
 /**
  * Action-first rows: what to change, what it buys and what it costs, then the
@@ -130,10 +129,6 @@ const OpportunityRow = memo(function OpportunityRow({
       ? adapter.refactoringPlanHref?.(opportunity.plan_id, opportunity.opportunity_id)
       : undefined;
   const prefetch = () => onPrefetch(opportunity.opportunity_id);
-  const stop = (action: () => void) => (event: React.MouseEvent) => {
-    event.stopPropagation();
-    action();
-  };
 
   return (
     <li
@@ -163,42 +158,13 @@ const OpportunityRow = memo(function OpportunityRow({
             <span className="break-all font-mono">{opportunity.file_path}</span> ·{" "}
             <span className="tabular-nums">{affectedSummary(opportunity)}</span>
           </p>
-          {opportunity.lower_priority ? (
-            <p className="mt-1">
-              <LowerPriorityTag reason={opportunity.lower_priority} />
-            </p>
-          ) : null}
-          {opportunity.preview ? (
-            <p className="mt-1">
-              <PreviewBadge note={opportunity.preview} />
-            </p>
-          ) : null}
-          <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-            {planHref ? (
-              <a
-                href={planHref}
-                onClick={(event) => event.stopPropagation()}
-                className={SECONDARY_CLS}
-              >
-                Open plan
-              </a>
-            ) : (
-              <button
-                type="button"
-                onClick={stop(() => onInspect(opportunity))}
-                className={SECONDARY_CLS}
-              >
-                Inspect
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={stop(() => adapter.navigate(adapter.fileHref(opportunity.file_path)))}
-              className={SECONDARY_CLS}
-            >
-              Open file
-            </button>
-          </p>
+          <OpportunityTags opportunity={opportunity} />
+          <RowLinks
+            opportunity={opportunity}
+            planHref={planHref}
+            onInspect={onInspect}
+            onOpenFile={() => adapter.navigate(adapter.fileHref(opportunity.file_path))}
+          />
         </div>
       </div>
 
@@ -219,6 +185,40 @@ const OpportunityRow = memo(function OpportunityRow({
     </li>
   );
 });
+
+/** The secondary verbs: the plan when one exists, else Inspect; and the file. */
+function RowLinks({
+  opportunity,
+  planHref,
+  onInspect,
+  onOpenFile,
+}: {
+  opportunity: PerformanceOpportunity;
+  planHref: string | undefined;
+  onInspect: (opportunity: PerformanceOpportunity) => void;
+  onOpenFile: () => void;
+}) {
+  const stop = (action: () => void) => (event: React.MouseEvent) => {
+    event.stopPropagation();
+    action();
+  };
+  return (
+    <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+      {planHref ? (
+        <a href={planHref} onClick={(event) => event.stopPropagation()} className={SECONDARY_CLS}>
+          Open plan
+        </a>
+      ) : (
+        <button type="button" onClick={stop(() => onInspect(opportunity))} className={SECONDARY_CLS}>
+          Inspect
+        </button>
+      )}
+      <button type="button" onClick={stop(onOpenFile)} className={SECONDARY_CLS}>
+        Open file
+      </button>
+    </p>
+  );
+}
 
 async function copy(text: string, what: string) {
   try {

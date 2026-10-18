@@ -64,16 +64,19 @@ function ModelStateNotice({ state }: { state: PerformanceModelState }) {
 
 /** Whether the id resolved, and whether anything still supports it. */
 export function StatusNotices({ detail }: { detail: PerformanceOpportunityDetail | undefined }) {
-  const resolved = detail && detail.found ? detail : null;
-  const unresolved = detail && !detail.found ? detail : null;
+  if (!detail) return null;
+  if (!detail.found) {
+    return (
+      <>
+        <ModelStateNotice state={detail.model_state} />
+        <p className="text-sm text-[var(--color-text-tertiary)]">{detail.detail}</p>
+      </>
+    );
+  }
   return (
     <>
-      {unresolved ? <ModelStateNotice state={unresolved.model_state} /> : null}
-      {resolved ? <ModelStateNotice state={resolved.model_state} /> : null}
-      {unresolved ? (
-        <p className="text-sm text-[var(--color-text-tertiary)]">{unresolved.detail}</p>
-      ) : null}
-      {resolved && resolved.lifecycle_status === "resolved" ? (
+      <ModelStateNotice state={detail.model_state} />
+      {detail.lifecycle_status === "resolved" ? (
         <p
           role="status"
           className="border-l-2 border-[var(--color-warning)] py-1.5 pl-3 text-sm text-[var(--color-text-secondary)]"

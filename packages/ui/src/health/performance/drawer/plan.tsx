@@ -7,11 +7,10 @@ import type {
 import type { StepVerify } from "@repowise-dev/types/refactoring";
 
 import { CommandLine } from "../../../shared/command-line";
-import { LowerPriorityTag } from "../../lower-priority-tag";
-import { PreviewBadge } from "../../preview-badge";
 import type { PerformanceViewAdapter } from "../adapter";
 import { planMatches, usePlan } from "../cache";
 import { fixStrategyLabel, planPresentation } from "../presentation";
+import { OpportunityTags } from "../tags";
 import { Section } from "./layout";
 
 /**
@@ -38,7 +37,10 @@ export function useVerifiedPlan(
  * one step with its locations: the server emits one step per site, and eight
  * copies of "Collect the keys before the loop" said nothing seven times.
  */
-function PlanSteps({ steps }: { steps: PerformanceOpportunityPlanStep[] }) {
+/** Consecutive steps making the same edit, as one group in order. */
+export function groupPlanSteps(
+  steps: PerformanceOpportunityPlanStep[],
+): PerformanceOpportunityPlanStep[][] {
   const groups: PerformanceOpportunityPlanStep[][] = [];
   for (const step of [...steps].sort((a, b) => a.order - b.order)) {
     const last = groups[groups.length - 1];
@@ -48,46 +50,60 @@ function PlanSteps({ steps }: { steps: PerformanceOpportunityPlanStep[] }) {
       groups.push([step]);
     }
   }
-  const where = (step: PerformanceOpportunityPlanStep) =>
-    step.file_path ? `${step.file_path}${step.line ? `:${step.line}` : ""}` : null;
+  return groups;
+}
+
+interface StepPlace {
+  place: string;
+  verify: StepVerify | undefined;
+}
+
+function placesOf(group: PerformanceOpportunityPlanStep[]): StepPlace[] {
+  return group.flatMap((step) =>
+    step.file_path
+      ? [{ place: `${step.file_path}${step.line ? `:${step.line}` : ""}`, verify: step.verify }]
+      : [],
+  );
+}
+
+/** Where one step's edits go: inline for one place, a list for several. */
+function StepPlaces({ places }: { places: StepPlace[] }) {
+  if (places.length === 1) {
+    return (
+      <>
+        <span className="ml-1.5 break-all font-mono text-xs text-[var(--color-text-tertiary)]">
+          {places[0]!.place}
+        </span>
+        <StepCheck verify={places[0]!.verify} />
+      </>
+    );
+  }
+  if (places.length === 0) return null;
+  return (
+    <ul className="mt-1 space-y-0.5 pl-5">
+      {places.map((p) => (
+        <li key={p.place} className="break-all font-mono text-xs text-[var(--color-text-tertiary)]">
+          {p.place}
+          <StepCheck verify={p.verify} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function PlanSteps({ steps }: { steps: PerformanceOpportunityPlanStep[] }) {
+  const note = "ml-1.5 text-xs text-[var(--color-text-tertiary)]";
   return (
     <ol className="mt-3 space-y-1.5">
-      {groups.map((group, index) => {
+      {groupPlanSteps(steps).map((group, index) => {
         const first = group[0]!;
-        const places = group
-          .map((step) => ({ place: where(step), verify: step.verify }))
-          .filter((p): p is { place: string; verify: StepVerify | undefined } =>
-            Boolean(p.place),
-          );
         return (
           <li key={first.order} className="text-sm text-[var(--color-text-secondary)]">
             <span className="tabular-nums text-[var(--color-text-tertiary)]">{index + 1}.</span>{" "}
             {first.action}
-            {group.length > 1 ? (
-              <span className="ml-1.5 text-xs text-[var(--color-text-tertiary)]">
-                {`at ${group.length} call sites`}
-              </span>
-            ) : null}
-            {first.applicability === "mechanical" ? (
-              <span className="ml-1.5 text-xs text-[var(--color-text-tertiary)]">mechanical</span>
-            ) : null}
-            {places.length === 1 ? (
-              <>
-                <span className="ml-1.5 break-all font-mono text-xs text-[var(--color-text-tertiary)]">
-                  {places[0]!.place}
-                </span>
-                <StepCheck verify={places[0]!.verify} />
-              </>
-            ) : places.length > 1 ? (
-              <ul className="mt-1 space-y-0.5 pl-5">
-                {places.map((p) => (
-                  <li key={p.place} className="break-all font-mono text-xs text-[var(--color-text-tertiary)]">
-                    {p.place}
-                    <StepCheck verify={p.verify} />
-                  </li>
-                ))}
-              </ul>
-            ) : null}
+            {group.length > 1 ? <span className={note}>{`at ${group.length} call sites`}</span> : null}
+            {first.applicability === "mechanical" ? <span className={note}>mechanical</span> : null}
+            <StepPlaces places={placesOf(group)} />
           </li>
         );
       })}
@@ -117,6 +133,55 @@ function StepCheck({ verify }: { verify: StepVerify | undefined }) {
   );
 }
 
+/** The proposed fix in a sentence, with its concrete construct when named. */
+function ProposedFix({ fix }: { fix: NonNullable<PerformanceOpportunity["fix"]> }) {
+  return (
+    <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
+      Proposed intervention: {fixStrategyLabel(fix.strategy).toLowerCase()}
+      {fix.api ? (
+        <>
+          {" "}
+          (<code className="font-mono text-xs">{fix.api}</code>)
+        </>
+      ) : null}
+      . {fix.rationale}
+    </p>
+  );
+}
+
+/** Where the stored plan stands: unreachable, loading, failed or stale. */
+function StoredPlanStatus({
+  plan,
+  enabled,
+}: {
+  plan: ReturnType<typeof useVerifiedPlan>;
+  enabled: boolean;
+}) {
+  const { planId, data, error, isLoading, matches } = plan;
+  const quiet = "mt-2 text-xs text-[var(--color-text-tertiary)]";
+  if (planId && !enabled) {
+    return (
+      <p className={quiet}>
+        This host cannot open the stored plan. Its id is{" "}
+        <span className="break-all font-mono">{planId}</span>.
+      </p>
+    );
+  }
+  if (planId && isLoading) return <p className={quiet}>Checking the stored plan.</p>;
+  if (planId && error) {
+    return <p className={quiet}>The stored plan could not be loaded, so it is not offered here.</p>;
+  }
+  if (data && !matches) {
+    return (
+      <p className="mt-2 text-sm text-[var(--color-warning)]">
+        The stored plan no longer names this opportunity. Update the index before handing it to an
+        agent.
+      </p>
+    );
+  }
+  return null;
+}
+
 export function PlanSection({
   opportunity,
   adapter,
@@ -129,60 +194,20 @@ export function PlanSection({
   plan: ReturnType<typeof useVerifiedPlan>;
 }) {
   const presentation = planPresentation(opportunity);
-  const { planId, data, error, isLoading, matches } = plan;
   const href =
-    planId && matches
-      ? adapter.refactoringPlanHref?.(planId, opportunity.opportunity_id)
+    plan.planId && plan.matches
+      ? adapter.refactoringPlanHref?.(plan.planId, opportunity.opportunity_id)
       : undefined;
-  const steps = opportunity.plan_steps;
+  const steps = opportunity.plan_steps ?? [];
 
   return (
     <Section title="Plan">
       <p className="text-sm font-medium text-[var(--color-text-primary)]">{presentation.label}</p>
-      {opportunity.lower_priority ? (
-        <p className="mt-1">
-          <LowerPriorityTag reason={opportunity.lower_priority} />
-        </p>
-      ) : null}
-      {opportunity.preview ? (
-        <p className="mt-1">
-          <PreviewBadge note={opportunity.preview} />
-        </p>
-      ) : null}
+      <OpportunityTags opportunity={opportunity} />
       <p className="mt-1 text-sm text-[var(--color-text-tertiary)]">{presentation.detail}</p>
-      {opportunity.fix ? (
-        <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-          Proposed intervention: {fixStrategyLabel(opportunity.fix.strategy).toLowerCase()}
-          {opportunity.fix.api ? (
-            <>
-              {" "}
-              (<code className="font-mono text-xs">{opportunity.fix.api}</code>)
-            </>
-          ) : null}
-          . {opportunity.fix.rationale}
-        </p>
-      ) : null}
-      {steps && steps.length > 0 ? <PlanSteps steps={steps} /> : null}
-      {planId && !enabled ? (
-        <p className="mt-2 text-xs text-[var(--color-text-tertiary)]">
-          This host cannot open the stored plan. Its id is{" "}
-          <span className="break-all font-mono">{planId}</span>.
-        </p>
-      ) : null}
-      {planId && enabled && isLoading ? (
-        <p className="mt-2 text-xs text-[var(--color-text-tertiary)]">Checking the stored plan.</p>
-      ) : null}
-      {planId && enabled && error ? (
-        <p className="mt-2 text-xs text-[var(--color-text-tertiary)]">
-          The stored plan could not be loaded, so it is not offered here.
-        </p>
-      ) : null}
-      {data && !matches ? (
-        <p className="mt-2 text-sm text-[var(--color-warning)]">
-          The stored plan no longer names this opportunity. Update the index before handing it to
-          an agent.
-        </p>
-      ) : null}
+      {opportunity.fix ? <ProposedFix fix={opportunity.fix} /> : null}
+      {steps.length > 0 ? <PlanSteps steps={steps} /> : null}
+      <StoredPlanStatus plan={plan} enabled={enabled} />
       {href ? (
         <a
           href={href}
