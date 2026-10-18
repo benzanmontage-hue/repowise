@@ -65,7 +65,7 @@ describe("CouplingAreaPairList", () => {
   it("leads with the verdict and opens an area pair", () => {
     const pairs = [areaPair("packages/ui", "packages/web", 7), areaPair("docs", "packages/core", 0)];
     const { onOpen, onPrompt } = renderList(response(pairs));
-    expect(screen.getByText(/1 area pair changes together with no import link/)).toBeTruthy();
+    expect(screen.getByText(/This area pair changes together with no import link/)).toBeTruthy();
     expect(screen.getByText(/Test files are left out/)).toBeTruthy();
     expect(screen.getByText("7 unexplained (70%)")).toBeTruthy();
     // The explained pair carries no prompt and no warning mark.

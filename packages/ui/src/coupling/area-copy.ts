@@ -11,7 +11,7 @@ export const DEFAULT_AREA_COUPLING_COPY = {
   ledeLabel: "Hidden coupling",
   ledeUnit: (n: number): string => (n === 1 ? "area pair" : "area pairs"),
   verdict: (n: number) =>
-    `${plural(n, "area pair changes", "area pairs change")} together with no import link between their files.`,
+    `${n === 1 ? "This area pair changes" : "These area pairs change"} together with no import link between their files, so a change on one side quietly needs one on the other.`,
   scope: (pairs: number, depth: number, testsIncluded: boolean) =>
     `Across ${plural(pairs, "file pair", "file pairs")}, grouped ${depth} ${depth === 1 ? "level" : "levels"} down.` +
     (testsIncluded ? "" : " Test files are left out: a test is expected to change with its code."),

@@ -990,7 +990,7 @@
       "rootLabel": "仓库根目录",
       "ledeLabel": "隐性耦合",
       "ledeUnit": "{count, plural, other {组区域}}",
-      "verdict": "{count, plural, other {# 组区域}}一起变更，但其文件之间没有任何导入关联。",
+      "verdict": "{count, plural, other {这些区域对}}在文件之间没有任何导入关联的情况下一起变更，因此一侧的修改会悄悄要求另一侧也随之修改。",
       "scope": "覆盖 {pairs, plural, other {# 个文件对}}，按向下 {depth, plural, other {# 层}}分组。已排除测试文件：测试本应随其代码一起变更。",
       "scopeWithTests": "覆盖 {pairs, plural, other {# 个文件对}}，按向下 {depth, plural, other {# 层}}分组，包含测试。",
       "cleanTitle": "向下 {depth, plural, other {# 层}}的区域之间没有隐性耦合",

@@ -990,7 +990,7 @@
       "rootLabel": "Repository root",
       "ledeLabel": "Hidden coupling",
       "ledeUnit": "{count, plural, one {area pair} other {area pairs}}",
-      "verdict": "{count, plural, one {# area pair changes} other {# area pairs change}} together with no import link between their files.",
+      "verdict": "{count, plural, one {This area pair changes} other {These area pairs change}} together with no import link between their files, so a change on one side quietly needs one on the other.",
       "scope": "Across {pairs, plural, one {# file pair} other {# file pairs}}, grouped {depth, plural, one {# level} other {# levels}} down. Test files are left out: a test is expected to change with its code.",
       "scopeWithTests": "Across {pairs, plural, one {# file pair} other {# file pairs}}, grouped {depth, plural, one {# level} other {# levels}} down, tests included.",
       "cleanTitle": "No hidden coupling between areas {depth, plural, one {# level} other {# levels}} down",
