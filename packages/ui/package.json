@@ -53,6 +53,7 @@
     "./symbols/normalize-calls": "./src/symbols/normalize-calls.ts",
     "./symbols/*": "./src/symbols/*.tsx",
     "./owners": "./src/owners/index.ts",
+    "./owners/offboarding": "./src/owners/offboarding.ts",
     "./owners/*": "./src/owners/*.tsx",
     "./modules": "./src/modules/index.ts",
     "./modules/*": "./src/modules/*.tsx",

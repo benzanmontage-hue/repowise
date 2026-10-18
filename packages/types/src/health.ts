@@ -179,6 +179,11 @@ export function bandForScore(score: number): HealthBand {
   return "at_risk";
 }
 
+/** The two bands below Fair: where a surface calls health weak. */
+export function isWeakHealthBand(band: HealthBand): boolean {
+  return band === "needs_work" || band === "at_risk";
+}
+
 /**
  * A 1-10 score at one decimal, rounded down, for display beside its band.
  * Rounding to nearest would print 6.98 as "7.0" beside "Fair"; flooring can

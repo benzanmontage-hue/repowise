@@ -52,13 +52,12 @@ import {
   buildCoverageAiPrompt,
   type CoverageFilePromptInput,
 } from "./ai-prompt-builder";
-import { bandForScore } from "@repowise-dev/types/health";
+import { bandForScore, isWeakHealthBand } from "@repowise-dev/types/health";
 import { scoreTextColor } from "./tokens";
 
 /** Plain figure; the band colour appears only where health is actually weak. */
 function quietScoreText(score: number): string {
-  const band = bandForScore(score);
-  return band === "needs_work" || band === "at_risk"
+  return isWeakHealthBand(bandForScore(score))
     ? scoreTextColor(score)
     : "text-[var(--color-text-secondary)]";
 }
