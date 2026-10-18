@@ -29,8 +29,11 @@ export function ActionabilityBar({
   counts,
   value,
   onChange,
+  paged = false,
 }: {
   counts: ActionabilityCounts;
+  /** The result runs past this page, so the counts describe the page only. */
+  paged?: boolean;
   value: PerformanceActionabilityState | null;
   onChange: (state: PerformanceActionabilityState | null) => void;
 }) {
@@ -70,6 +73,11 @@ export function ActionabilityBar({
         options={options}
         onChange={(next) => onChange(next === "all" ? null : next)}
       />
+      {paged ? (
+        <p className="text-xs text-[var(--color-text-tertiary)]">
+          Counted over the causes on this page, as are the area counts below.
+        </p>
+      ) : null}
     </div>
   );
 }

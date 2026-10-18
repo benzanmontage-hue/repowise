@@ -22,14 +22,32 @@ export const planKey = (cacheKey: string, id: string) => `performance-plan:${cac
 /** Read once, never revalidated: an index's causes change only on a new index. */
 const ONCE = { revalidateOnFocus: false, revalidateIfStale: false } as const;
 
+const inflight = new Map<string, Promise<unknown>>();
+
+/**
+ * One request per key at a time, whoever starts it: a hover prefetch, the
+ * drawer's own fetch and a prompt build all join the same promise.
+ */
+function fetchOnce<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
+  const pending = inflight.get(key) as Promise<T> | undefined;
+  if (pending) return pending;
+  const request = fetcher().finally(() => inflight.delete(key));
+  inflight.set(key, request);
+  return request;
+}
+
+/** Keys whose prefetch failed this session, so later hovers do not retry them. */
+const failed = new Set<string>();
+
 export function useOpportunityDetail(
   adapter: PerformanceViewAdapter,
   id: string | null,
 ): { data: PerformanceOpportunityDetail | undefined; error: unknown } {
   const fetchDetail = adapter.getPerformanceOpportunity;
+  const key = id && fetchDetail ? detailKey(adapter.cacheKey, id) : null;
   const { data, error } = useSWR<PerformanceOpportunityDetail>(
-    id && fetchDetail ? detailKey(adapter.cacheKey, id) : null,
-    () => fetchDetail!(id!, { evidenceLimit: EVIDENCE_LIMIT }),
+    key,
+    () => fetchOnce(key!, () => fetchDetail!(id!, { evidenceLimit: EVIDENCE_LIMIT })),
     ONCE,
   );
   return { data, error };
@@ -37,14 +55,10 @@ export function useOpportunityDetail(
 
 export function usePlan(adapter: PerformanceViewAdapter, planId: string | null) {
   const fetchPlan = adapter.getRefactoringPlan;
-  return useSWR<RefactoringPlan>(
-    planId && fetchPlan ? planKey(adapter.cacheKey, planId) : null,
-    () => fetchPlan!(planId!),
-    ONCE,
-  );
+  const key = planId && fetchPlan ? planKey(adapter.cacheKey, planId) : null;
+  return useSWR<RefactoringPlan>(key, () => fetchOnce(key!, () => fetchPlan!(planId!)), ONCE);
 }
 
-const inflight = new Map<string, Promise<unknown>>();
 
 /**
  * Fetch into the shared cache outside a render: for a prefetch on hover, or a
@@ -57,15 +71,27 @@ export function useCachedLoader() {
     <T,>(key: string, fetcher: () => Promise<T>): Promise<T> => {
       const hit = cache.get(key)?.data as T | undefined;
       if (hit !== undefined) return Promise.resolve(hit);
-      const pending = inflight.get(key) as Promise<T> | undefined;
-      if (pending) return pending;
-      const request = fetcher()
-        .then((value) => mutate(key, value, { revalidate: false }) as Promise<T>)
-        .finally(() => inflight.delete(key));
-      inflight.set(key, request);
-      return request;
+      return fetchOnce(key, fetcher).then(
+        (value) => mutate(key, value, { revalidate: false }) as Promise<T>,
+      );
     },
     [cache, mutate],
+  );
+}
+
+/**
+ * Warm one cause's detail on hover or focus. A key that failed once is not
+ * retried by later hovers; opening the cause still asks again.
+ */
+export function usePrefetchDetail(adapter: PerformanceViewAdapter) {
+  const load = useDetailLoader(adapter);
+  return useCallback(
+    (id: string) => {
+      const key = detailKey(adapter.cacheKey, id);
+      if (failed.has(key)) return;
+      load(id).catch(() => failed.add(key));
+    },
+    [adapter, load],
   );
 }
 

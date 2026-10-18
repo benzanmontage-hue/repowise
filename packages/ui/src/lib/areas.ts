@@ -66,7 +66,10 @@ export function groupByArea<T>(
   return Array.from(groups, ([area, grouped]) => ({ area, items: grouped }));
 }
 
-/** Whether `path` sits inside `area`, at any depth. The root area holds every path. */
+/**
+ * Whether `path` sits inside `area`, at any depth. The root area is the files
+ * at the repository root, as `groupByArea` groups them, not every path.
+ */
 export function inArea(path: string, area: string): boolean {
-  return area === ROOT_AREA || path.startsWith(`${area}/`);
+  return area === ROOT_AREA ? dirOf(path) === ROOT_AREA : path.startsWith(`${area}/`);
 }

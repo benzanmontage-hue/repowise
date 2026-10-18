@@ -1,6 +1,6 @@
 "use client";
 
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PerformanceOpportunity } from "@repowise-dev/types/health";
 
 import { PaginationControls } from "../shared/pagination-controls";
@@ -8,7 +8,7 @@ import { useAiPromptAction } from "./ai-prompt-action";
 import { ActionabilityBar } from "./performance/actionability-bar";
 import type { PerformanceViewAdapter } from "./performance/adapter";
 import { AREA_PREVIEW, AreaGroups, areaLabel } from "./performance/area-groups";
-import { useDetailLoader, useOpportunityDetail } from "./performance/cache";
+import { useOpportunityDetail, usePrefetchDetail } from "./performance/cache";
 import {
   ActiveChips,
   ContextTabs,
@@ -104,8 +104,13 @@ export function PerformanceView({
   onOpenOpportunityChange?: ((opportunityId: string | null) => void) | undefined;
 }) {
   const [filters, setFilters] = useState(() => initialState(initialFilters));
+  // Read through a ref so two changes in one tick compose, and so callbacks
+  // handed to memoized cards need not change with every filter.
+  const current = useRef(filters);
+  current.current = filters;
   const apply = useCallback(
     (next: PerformanceFilterState) => {
+      current.current = next;
       setFilters(next);
       if (onFiltersChange) {
         const params = new URLSearchParams();
@@ -155,25 +160,25 @@ export function PerformanceView({
 
   const { openPrompt, promptModal } = useAiPromptAction();
   const prompts = usePerformancePrompts(adapter);
-  const loadDetail = useDetailLoader(adapter);
+  const prefetch = usePrefetchDetail(adapter);
   const detailById = capabilities.detailById;
   const callbacks: RowCallbacks = useMemo(
     () => ({
       onInspect: select,
       onPrompt: (opportunity) => openPrompt(prompts.forOpportunity(opportunity)),
       onPrefetch: (id) => {
-        if (detailById) void loadDetail(id).catch(() => undefined);
+        if (detailById) prefetch(id);
       },
     }),
-    [select, openPrompt, prompts, loadDetail, detailById],
+    [select, openPrompt, prompts, prefetch, detailById],
   );
   const onAreaPrompt = useCallback(
     (area: string, rows: PerformanceOpportunity[]) => openPrompt(prompts.forArea(area, rows)),
     [openPrompt, prompts],
   );
   const onOpenArea = useCallback(
-    (area: string) => apply(withFilter(filters, "area", area)),
-    [apply, filters],
+    (area: string) => apply(withFilter(current.current, "area", area)),
+    [apply],
   );
 
   const items = useMemo(() => data?.items ?? [], [data]);
@@ -285,6 +290,7 @@ export function PerformanceView({
 
         {items.length > 0 ? (
           <ActionabilityBar
+            paged={data.total > items.length}
             counts={counts}
             value={filters.state}
             onChange={(state) => apply(withFilter(filters, "state", state))}

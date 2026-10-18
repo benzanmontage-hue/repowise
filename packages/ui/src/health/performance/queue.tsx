@@ -140,7 +140,7 @@ const OpportunityRow = memo(function OpportunityRow({
       data-performance-opportunity={opportunity.opportunity_id}
       aria-current={selected ? "true" : undefined}
       aria-label={`Inspect ${title}`}
-      className={`${CLICKABLE_ROW_CLS} flex flex-col gap-3 px-1 py-4 sm:flex-row sm:items-start sm:gap-4 ${
+      className={`${CLICKABLE_ROW_CLS} group/row flex flex-col gap-3 px-1 py-4 sm:flex-row sm:items-start sm:gap-4 ${
         selected ? "bg-[var(--color-bg-elevated)]" : "hover:bg-[var(--color-bg-elevated)]"
       }`}
       onMouseEnter={prefetch}
@@ -203,7 +203,17 @@ const OpportunityRow = memo(function OpportunityRow({
       </div>
 
       <div className="flex shrink-0 items-center gap-1 pl-10 sm:pl-0">
-        <AiPromptButton label={AGENT_PROMPT_LABEL} onClick={() => onPrompt(opportunity)} />
+        {/* Quiet per row: a ghost button shown on hover, focus and the
+            selected row, always in the tab order; the filled prompt lives on
+            the area header and in the drawer. Interim styling until the
+            shared row-action component (L-nav) lands, then swap to it. */}
+        <AiPromptButton
+          label={AGENT_PROMPT_LABEL}
+          onClick={() => onPrompt(opportunity)}
+          className={`border-transparent bg-transparent transition-opacity focus-visible:opacity-100 sm:group-hover/row:opacity-100 sm:group-focus-within/row:opacity-100 ${
+            selected ? "" : "sm:opacity-0"
+          }`}
+        />
         <RowOverflow opportunity={opportunity} title={title} />
       </div>
     </li>

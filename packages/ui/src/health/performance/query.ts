@@ -145,11 +145,14 @@ export function serverKey(state: PerformanceFilterState): string {
 export function writeFilters(state: PerformanceFilterState, params: URLSearchParams): void {
   params.delete(LEGACY_PARAM);
   params.set(PARAM.context, state.context);
-  for (const key of [...NARROWING_KEYS, "state", "area"] as const) {
+  for (const key of [...NARROWING_KEYS, "state"] as const) {
     const value = state[key];
     if (value) params.set(PARAM[key], value);
     else params.delete(PARAM[key]);
   }
+  // The root area is the empty string, so only null means "no area".
+  if (state.area !== null) params.set(PARAM.area, state.area);
+  else params.delete(PARAM.area);
   if (state.sort !== INITIAL_FILTERS.sort) params.set(PARAM.sort, state.sort);
   else params.delete(PARAM.sort);
   if (state.page > 1) params.set(PARAM.page, String(state.page));

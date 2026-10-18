@@ -46,6 +46,12 @@ describe("performance view state and its URL", () => {
     expect(readFilters(params)).toEqual(state);
   });
 
+  it("keeps the root area, the empty string, through the URL", () => {
+    const params = write({ ...INITIAL_FILTERS, area: "" });
+    expect(params.has("area")).toBe(true);
+    expect(readFilters(params).area).toBe("");
+  });
+
   it("removes a cleared field and the legacy blob on write", () => {
     const params = write(INITIAL_FILTERS, "perf=context%3Dtest&boundary=db&page=4");
     expect(params.has("perf")).toBe(false);

@@ -28,6 +28,8 @@ describe("areas", () => {
   it("holds a path inside its area at any depth, never a sibling with a shared prefix", () => {
     expect(inArea("src/a/b/c.py", "src/a")).toBe(true);
     expect(inArea("src/ab/c.py", "src/a")).toBe(false);
+    // The root area is the files at the root, as groupByArea groups them.
     expect(inArea("x.py", "")).toBe(true);
+    expect(inArea("src/x.py", "")).toBe(false);
   });
 });

@@ -95,12 +95,12 @@ const AreaCard = memo(function AreaCard({
       aria-label={`${label}, ${group.items.length} causes`}
       className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]"
     >
-      <header className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
+      <header className="flex flex-col items-start gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-3">
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
           aria-expanded={open}
-          className="flex min-w-0 flex-1 items-center gap-2 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-primary)]"
+          className="flex w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded text-left sm:w-auto sm:flex-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-primary)]"
         >
           <ChevronRight
             aria-hidden="true"
