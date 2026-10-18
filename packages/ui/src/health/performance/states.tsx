@@ -5,8 +5,6 @@ import type { PerformanceOpportunitySummary } from "@repowise-dev/types/health";
 
 import { EmptyState } from "../../shared/empty-state";
 import { Skeleton, SkeletonRegion } from "../../ui/skeleton";
-import type { ExcludedReview } from "./grouping";
-import { QUIET_LINK_CLS } from "./queue";
 
 /**
  * Every state the queue can be in other than "here are the rows". They are
@@ -56,65 +54,31 @@ export function UnavailableQueue({ summary }: { summary: PerformanceOpportunityS
   );
 }
 
-/** The review links for what the default queue left out, as one line. */
-export function LeftOut({
-  reviews,
-  onReview,
-}: {
-  reviews: ExcludedReview[];
-  onReview: (review: ExcludedReview) => void;
-}) {
-  if (reviews.length === 0) return null;
-  const total = reviews.reduce((sum, review) => sum + review.count, 0);
-  return (
-    <p className="text-xs text-[var(--color-text-tertiary)]">
-      <span className="tabular-nums">{total.toLocaleString()}</span> causes left out of this
-      queue:{" "}
-      {reviews.map((review, index) => (
-        <span key={review.reason}>
-          {index > 0 ? ", " : ""}
-          <span className="tabular-nums">{review.count.toLocaleString()}</span>{" "}
-          <button type="button" onClick={() => onReview(review)} className={QUIET_LINK_CLS}>
-            {review.label}
-          </button>
-        </span>
-      ))}
-      .
-    </p>
-  );
-}
-
 /**
- * Analyzed, and nothing in this view needs a change: the good state. It names
- * the scope and commit it holds for, and what was left out, so "clear" is a
- * statement about something specific and the reader can check the rest.
+ * Analyzed, and nothing in this scope needs a change: the good state. It
+ * names the scope and commit it holds for; the accounting sentence beneath
+ * says where the rest of the repository is, so "clear" is a statement about
+ * something specific and the reader can check the rest.
  */
 export function GoodState({
   scope,
   analyzedCommit,
-  repositoryTotal,
-  reviews,
-  onReview,
+  children,
 }: {
-  /** "production code", "all code". */
+  /** "worth doing now in production code", "in all code". */
   scope: string;
   analyzedCommit: string | null | undefined;
-  repositoryTotal: number;
-  reviews: ExcludedReview[];
-  onReview: (review: ExcludedReview) => void;
+  /** The accounting sentence for the scope. */
+  children?: React.ReactNode;
 }) {
   const at = analyzedCommit ? ` at ${analyzedCommit.slice(0, 7)}` : "";
   return (
     <EmptyState
       tone="positive"
-      title={`No actionable performance issues in ${scope}${at}`}
-      description={
-        repositoryTotal > 0
-          ? `${repositoryTotal.toLocaleString()} causes analysed across the repository, none of them a change worth making here now. The detectors read code shape, not latency.`
-          : "Nothing the detectors recognise was found. They read code shape, not latency, and are high precision and low recall."
-      }
+      title={`No performance changes ${scope}${at}`}
+      description="The detectors read code shape, not latency, and are high precision and low recall."
     >
-      <LeftOut reviews={reviews} onReview={onReview} />
+      {children}
     </EmptyState>
   );
 }

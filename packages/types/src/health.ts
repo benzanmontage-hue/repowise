@@ -642,9 +642,13 @@ export type PerformanceOpportunityQuery = {
   boundary?: string;
   /** Evidence confidence, requested apart from fix safety and actionability. */
   confidence?: PerformanceOpportunityConfidence;
-  actionability?: PerformanceActionabilityState;
-  /** Absent means `proven`; `unproven` lists the causes the default queue leaves out. */
-  proof?: PerformanceCostProof;
+  /** Absent means the default queue's states; `all` lifts them. */
+  actionability?: PerformanceActionabilityState | "all";
+  /** Absent means `proven`; `unproven` lists the causes the default queue leaves out;
+   *  `all` lifts the proof filter. */
+  proof?: PerformanceCostProof | "all";
+  /** Keep to the default queue's stored verdict whatever state is chosen (REST only). */
+  queue?: boolean;
   /** Absent means every role but startup, cli, ui, tooling and test; `all` lists every role. */
   role?: PerformanceExecutionRole | "all";
   /** `summary` drops the explanatory fields and keeps identity and counts. */
@@ -717,9 +721,16 @@ export interface PerformanceOpportunitySummary {
   gated?: GatedByLanguage;
 }
 
+/** The dashboard's three scopes: the default queue, every production cause, everything. */
+export type PerformanceScope = "now" | "production" | "all";
+
 export interface PerformanceOpportunityPage extends Paginated<PerformanceOpportunity> {
   summary: PerformanceOpportunitySummary;
+  /** Counted inside the requested scope and filters on the REST queue, so a
+   *  facet with no own selection sums to `total`. */
   facets: PerformanceFacets;
+  /** Causes per scope, unfiltered. Absent from a server that predates scopes. */
+  scopes?: Partial<Record<PerformanceScope, number>>;
   /** What a language gate held back, by language. Empty or absent when nothing was. */
   gated?: GatedByLanguage;
   /** Filter values the server did not recognize, named rather than dropped. */

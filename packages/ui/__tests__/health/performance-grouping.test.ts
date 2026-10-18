@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   actionabilityCounts,
   areaGroups,
+  countsFromFacet,
   excludedReviews,
   visibleItems,
 } from "../../src/health/performance/grouping";
+import { scopeAccount } from "../../src/health/performance/scope";
 import { verdictOf } from "../../src/health/performance/verdict";
 import { opportunity } from "./fixtures/performance";
 
@@ -24,38 +26,80 @@ describe("performance grouping", () => {
     expect(actionabilityCounts(items)).toEqual({ plan_ready: 1, advisory: 2, investigate: 1, expected: 0 });
   });
 
+  it("reads the server's actionability facet as counts", () => {
+    expect(countsFromFacet([{ value: "advisory", total: 4 }, { value: "bogus", total: 1 }])).toEqual({
+      plan_ready: 0,
+      advisory: 4,
+      investigate: 0,
+      expected: 0,
+    });
+    expect(countsFromFacet(undefined).advisory).toBe(0);
+  });
+
   it("ranks areas by plan-ready, then advisory, keeping the server order inside", () => {
     const groups = areaGroups(items);
     expect(groups.map((g) => g.area)).toEqual(["pkg/server", "pkg/core", "pkg/web"]);
     expect(groups[1]!.items.map((i) => i.opportunity_id)).toEqual(["a", "c"]);
   });
 
-  it("narrows by state and by an area at any depth", () => {
-    expect(visibleItems(items, "advisory").map((i) => i.opportunity_id)).toEqual(["a", "c"]);
-    expect(visibleItems(items, null, "pkg/core").map((i) => i.opportunity_id)).toEqual(["a", "c"]);
-    expect(visibleItems(items, "plan_ready", "pkg/core")).toEqual([]);
+  it("narrows to an area at any depth", () => {
+    expect(visibleItems(items, "pkg/core").map((i) => i.opportunity_id)).toEqual(["a", "c"]);
+    expect(visibleItems(items, null)).toHaveLength(4);
   });
 
-  it("turns left-out counts into review links, largest first, zeros dropped", () => {
+  it("turns left-out counts into review links with the scope that lists them", () => {
     const reviews = excludedReviews({ test: 5, unmeasured_cost: 9, cold_path: 0, no_strategy: 2 });
     expect(reviews.map((r) => [r.reason, r.count])).toEqual([
       ["unmeasured_cost", 9],
       ["test", 5],
       ["no_strategy", 2],
     ]);
-    expect(reviews[0]!.patch).toEqual({ proof: "unproven" });
-    expect(reviews[1]!.patch).toEqual({ context: "test" });
+    expect(reviews[0]!.patch).toEqual({ scope: "production", proof: "unproven" });
+    expect(reviews[1]!.patch).toEqual({ scope: "all", context: "test" });
+    expect(reviews[2]!.patch).toEqual({ scope: "production", actionability: "investigate" });
     expect(excludedReviews(undefined)).toEqual([]);
   });
 
-  it("leads with the changes worth making and where they concentrate", () => {
-    const verdict = verdictOf(items, areaGroups(items));
-    expect(verdict.value).toBe(3);
-    expect(verdict.unit).toBe("changes worth making now");
-    expect(verdict.sentence).toBe("Concentrated in 2 areas, led by pkg/server.");
-    const one = [items[0]!];
-    expect(verdictOf(one, areaGroups(one)).sentence).toBe("All in pkg/core.");
-    const review = [items[3]!];
-    expect(verdictOf(review, areaGroups(review)).unit).toBe("cause to review");
+  it("leads with the scope's own count, named for the scope", () => {
+    const groups = areaGroups(items);
+    expect(verdictOf("now", 4, groups)).toEqual({
+      value: 4,
+      unit: "changes worth making now",
+      areas: "Across 3 areas, led by pkg/server.",
+    });
+    expect(verdictOf("production", 1, groups.slice(0, 1)).unit).toBe("production cause");
+    expect(verdictOf("all", 938, []).areas).toBeNull();
+  });
+});
+
+describe("scope accounting", () => {
+  const counts = { now: 4, production: 430, all: 938 };
+
+  it("accounts for every hidden cause from the default queue", () => {
+    expect(scopeAccount("now", counts)).toEqual([
+      { count: 4, text: "worth doing now", scope: null },
+      { count: 426, text: "more production causes need evidence first", scope: "production" },
+      { count: 508, text: "are outside production code", scope: "all" },
+    ]);
+  });
+
+  it("names the scope first and links the others", () => {
+    expect(scopeAccount("production", counts).map((c) => [c.count, c.scope])).toEqual([
+      [430, null],
+      [4, "now"],
+      [508, "all"],
+    ]);
+    expect(scopeAccount("all", counts).map((c) => [c.count, c.scope])).toEqual([
+      [938, null],
+      [430, "production"],
+      [4, "now"],
+    ]);
+  });
+
+  it("drops a clause with nothing behind it, but never the scope's own", () => {
+    expect(scopeAccount("now", { now: 0, production: 0, all: 3 })).toEqual([
+      { count: 0, text: "worth doing now", scope: null },
+      { count: 3, text: "are outside production code", scope: "all" },
+    ]);
   });
 });

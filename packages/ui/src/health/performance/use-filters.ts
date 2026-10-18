@@ -15,7 +15,7 @@ export function initialState(initial: string | undefined): PerformanceFilterStat
   if (!initial) return INITIAL_FILTERS;
   const params = new URLSearchParams(initial);
   // A host that predates the flat schema hands over the blob itself.
-  return params.has("context") && !params.has("ctx")
+  return params.has("context") && !params.has("ctx") && !params.has("scope")
     ? parseLegacyFilters(initial)
     : readFilters(params);
 }

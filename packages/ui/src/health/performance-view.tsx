@@ -5,40 +5,42 @@ import type { PerformanceOpportunity } from "@repowise-dev/types/health";
 
 import { ActiveFilterChips, type ActiveFilterChip } from "../shared/more-filters";
 import { PaginationControls } from "../shared/pagination-controls";
+import { Button } from "../ui/button";
 import { useAiPromptAction } from "./ai-prompt-action";
 import { ActionabilityBar } from "./performance/actionability-bar";
 import type { PerformanceViewAdapter } from "./performance/adapter";
 import { AREA_PREVIEW, AreaGroups, areaLabel } from "./performance/area-groups";
 import { useOpportunityDetail, usePrefetchDetail } from "./performance/cache";
-import { ContextTabs, NarrowingFilters, narrowingChipLabel, SortControl } from "./performance/filters";
+import { NarrowingFilters, narrowingChipLabel, SortControl } from "./performance/filters";
 import {
-  actionabilityCounts,
   areaGroups,
+  countsFromFacet,
   excludedReviews,
   visibleItems,
   type ExcludedReview,
 } from "./performance/grouping";
 import { LegacyPerformanceFindings } from "./performance/legacy";
-import { ACTIONABILITY_LABEL, contextLabel } from "./performance/presentation";
+import { ACTIONABILITY_LABEL } from "./performance/presentation";
 import { usePerformancePrompts } from "./performance/prompts";
 import {
   clearNarrowing,
-  INITIAL_FILTERS,
   NARROWING_KEYS,
   narrowingCount,
+  narrowingKeysFor,
   PAGE_SIZE,
   readFilters,
   withFilter,
-  withFilters,
+  withScope,
   writeFilters,
   type PerformanceFilterState,
+  type PerformanceScope,
 } from "./performance/query";
 import { QUIET_LINK_CLS, type RowCallbacks } from "./performance/queue";
+import { ScopeControl, ScopeSentence, type ScopeCounts } from "./performance/scope";
 import {
   FilteredEmpty,
   GoodState,
   IgnoredArgumentsNotice,
-  LeftOut,
   LinkedCauseUnavailable,
   QueueError,
   QueueSkeleton,
@@ -53,15 +55,23 @@ import { PerformanceVerdict, verdictOf } from "./performance/verdict";
  * The Performance tab: how many changes are worth making now, where they sit,
  * and a prompt for an agent to make each one.
  *
- * Composition and state only. Ranking, eligibility, facets and plan linkage
- * are the server's; grouping by area and the actionability split are pure
- * derivations over the loaded result (`performance/grouping`).
+ * One scope (worth doing now, all production, everything) decides which
+ * causes exist, and every figure is counted inside it by the server: the
+ * lede, the actionability bar and the filter counts. Grouping by area is a
+ * pure derivation over the loaded page (`performance/grouping`).
  */
 
 export type { PerformanceViewAdapter, PerformanceFilterState };
 export { readFilters as readPerformanceFilters, writeFilters as writePerformanceFilters };
 
 const OpportunityDrawer = lazy(() => import("./performance/drawer"));
+
+/** How the good state names each scope. */
+const GOOD_STATE_SCOPE: Record<PerformanceScope, string> = {
+  now: "worth making now in production code",
+  production: "found in production code",
+  all: "found in any code",
+};
 
 export function PerformanceView({
   adapter,
@@ -149,12 +159,12 @@ export function PerformanceView({
   );
 
   const items = useMemo(() => data?.items ?? [], [data]);
-  const counts = useMemo(() => actionabilityCounts(items), [items]);
+  const counts = useMemo(() => countsFromFacet(data?.facets.actionability), [data]);
   const allGroups = useMemo(() => areaGroups(items), [items]);
   // An open area lists every cause in it, grouped by its own sub-areas.
   const groups = useMemo(
-    () => areaGroups(visibleItems(items, filters.state, filters.area)),
-    [items, filters.state, filters.area],
+    () => areaGroups(visibleItems(items, filters.area)),
+    [items, filters.area],
   );
   const focused = filters.area !== null;
 
@@ -169,15 +179,28 @@ export function PerformanceView({
   const { summary, facets } = data;
   if (summary.status === "unavailable") return <UnavailableQueue summary={summary} />;
 
-  // A server that predates context scoping sends no repository_total.
+  // A server that predates context scoping sends no repository_total, and
+  // one that predates scopes no scope sizes; both fall back to the summary.
   const repositoryTotal = summary.repository_total ?? summary.total;
-  const isDefaultQueue =
-    filters.context === INITIAL_FILTERS.context && narrowingCount(filters) === 0;
-  // The left-out counts describe the default queue, so only it offers them.
-  const reviews = isDefaultQueue ? excludedReviews(summary.default_queue?.excluded) : [];
-  const onReview = (review: ExcludedReview) => apply(withFilters(filters, review.patch));
-  const scope =
-    filters.context === "all" ? "all code" : `${contextLabel(filters.context).toLowerCase()} code`;
+  const scopes: ScopeCounts = {
+    now: data.scopes?.now ?? summary.default_queue?.total ?? 0,
+    production: data.scopes?.production ?? summary.context?.production ?? 0,
+    all: data.scopes?.all ?? repositoryTotal,
+  };
+  const reviews = excludedReviews(summary.default_queue?.excluded);
+  const toScope = (scope: PerformanceScope) => apply(withScope(filters, scope));
+  const onReview = ({ patch: { scope, ...rest } }: ExcludedReview) =>
+    apply(withScope(filters, scope, rest));
+  const sentence = (
+    <ScopeSentence
+      scope={filters.scope}
+      counts={scopes}
+      reviews={reviews}
+      onScope={toScope}
+      onReview={onReview}
+    />
+  );
+  const otherProduction = scopes.production - scopes.now;
 
   const chips: ActiveFilterChip[] = [
     ...NARROWING_KEYS.flatMap((key) => {
@@ -192,12 +215,12 @@ export function PerformanceView({
           ]
         : [];
     }),
-    ...(filters.state
+    ...(filters.actionability
       ? [
           {
-            key: "state",
-            label: `Showing: ${ACTIONABILITY_LABEL[filters.state]}`,
-            onRemove: () => apply(withFilter(filters, "state", null)),
+            key: "actionability",
+            label: `Showing: ${ACTIONABILITY_LABEL[filters.actionability]}`,
+            onRemove: () => apply(withFilter(filters, "actionability", null)),
           },
         ]
       : []),
@@ -218,13 +241,11 @@ export function PerformanceView({
     <div className="space-y-8">
       {items.length > 0 ? (
         <PerformanceVerdict
-          verdict={verdictOf(items, allGroups)}
-          context={filters.context}
+          verdict={verdictOf(filters.scope, data.total, allGroups)}
           analyzedCommit={summary.analyzed_commit}
-          shown={items.length}
-          total={data.total}
-          repositoryTotal={repositoryTotal}
-        />
+        >
+          {sentence}
+        </PerformanceVerdict>
       ) : null}
 
       <section aria-label="Performance causes" className="space-y-4">
@@ -234,13 +255,7 @@ export function PerformanceView({
         ) : null}
 
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-          <ContextTabs
-            value={filters.context}
-            facets={facets}
-            total={repositoryTotal}
-            collapsed={!capabilities.canonicalContexts}
-            onChange={(context) => apply(withFilter(filters, "context", context))}
-          />
+          <ScopeControl value={filters.scope} counts={scopes} onChange={toScope} />
           <SortControl
             value={filters.sort}
             onChange={(sort) => apply(withFilter(filters, "sort", sort))}
@@ -250,6 +265,7 @@ export function PerformanceView({
           <NarrowingFilters
             filters={filters}
             facets={facets}
+            keys={narrowingKeysFor(filters.scope)}
             onChange={(key, value) => apply(withFilter(filters, key, value as never))}
           />
         ) : null}
@@ -257,25 +273,23 @@ export function PerformanceView({
 
         {items.length > 0 ? (
           <ActionabilityBar
-            paged={paged}
             counts={counts}
-            value={filters.state}
-            onChange={(state) => apply(withFilter(filters, "state", state))}
+            value={filters.actionability}
+            onChange={(state) => apply(withFilter(filters, "actionability", state))}
           />
         ) : null}
 
         {items.length === 0 ? (
-          // A context with no causes is a clean context, not a failed filter.
+          // A scope with no causes is clean, not a failed filter.
           narrowingCount(filters) > 0 && repositoryTotal > 0 ? (
-            <FilteredEmpty onClear={() => apply({ ...clearNarrowing(filters), context: "all" })} />
+            <FilteredEmpty onClear={() => apply(clearNarrowing(filters))} />
           ) : (
             <GoodState
-              scope={scope}
+              scope={GOOD_STATE_SCOPE[filters.scope]}
               analyzedCommit={summary.analyzed_commit}
-              repositoryTotal={repositoryTotal}
-              reviews={reviews}
-              onReview={onReview}
-            />
+            >
+              {sentence}
+            </GoodState>
           )
         ) : (
           <div className="space-y-3">
@@ -300,7 +314,12 @@ export function PerformanceView({
           </div>
         )}
 
-        {items.length > 0 ? <LeftOut reviews={reviews} onReview={onReview} /> : null}
+        {filters.scope === "now" && items.length > 0 && otherProduction > 0 ? (
+          <Button variant="outline" size="sm" onClick={() => toScope("production")}>
+            Show the {otherProduction.toLocaleString()} other production{" "}
+            {otherProduction === 1 ? "cause" : "causes"}
+          </Button>
+        ) : null}
 
         {data.total > PAGE_SIZE ? (
           <PaginationControls

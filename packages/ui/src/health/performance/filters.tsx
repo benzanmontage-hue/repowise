@@ -1,8 +1,6 @@
 "use client";
 
 import type {
-  PerformanceContextFilter,
-  PerformanceExecutionContext,
   PerformanceFacetCount,
   PerformanceFacetKey,
   PerformanceFacets,
@@ -10,13 +8,7 @@ import type {
 
 import { FilterSelect } from "../code-health-controls";
 import { MoreFilters } from "../../shared/more-filters";
-import { ViewTabs } from "../../shared/view-tabs";
-import {
-  CONTEXT_ORDER,
-  FACET_LABEL,
-  contextLabel,
-  facetValueLabel,
-} from "./presentation";
+import { FACET_LABEL, facetValueLabel } from "./presentation";
 import {
   type NarrowingKey,
   type PerformanceFilterState,
@@ -29,78 +21,23 @@ import {
  * removes its own alternatives from the list.
  */
 
-function countOf(counts: PerformanceFacetCount[] | undefined, value: string): number {
-  return counts?.find((entry) => entry.value === value)?.total ?? 0;
-}
-
-/**
- * The four canonical contexts stay separate and always visible, because a
- * context with no rows is a fact about the repository worth reading. When the
- * server predates the vocabulary they collapse to the pairing it understands.
- */
-export function ContextTabs({
-  value,
-  facets,
-  total,
-  collapsed,
-  onChange,
-}: {
-  value: PerformanceContextFilter;
-  facets: PerformanceFacets;
-  total: number;
-  collapsed: boolean;
-  onChange: (context: PerformanceContextFilter) => void;
-}) {
-  const counts = facets.context;
-  const contexts: PerformanceExecutionContext[] = collapsed
-    ? ["production", "test"]
-    : CONTEXT_ORDER;
-  // `total` is the unscoped repository_total; `counts` is facets.context,
-  // which the server has already narrowed by every other active filter.
-  // Badge "All" with the sum of the (narrowed) context facet so it agrees
-  // with what clicking it actually returns. Fall back to `total` only when
-  // the server sends no facets.context at all (a server predating context
-  // scoping, which also won't send a narrowed repository_total).
-  const scopedTotal = counts?.reduce((sum, entry) => sum + entry.total, 0) ?? total;
-  const tabs = [
-    { id: "all", label: "All", badge: scopedTotal },
-    ...contexts.map((context) => ({
-      id: context,
-      label:
-        collapsed && context === "production" ? "Production & tooling" : contextLabel(context),
-      badge:
-        collapsed && context === "production"
-          ? countOf(counts, "production") + countOf(counts, "tooling")
-          : countOf(counts, context),
-    })),
-  ];
-  return (
-    <ViewTabs
-      tabs={tabs}
-      value={value}
-      onValueChange={(next) => onChange(next as PerformanceContextFilter)}
-    />
-  );
-}
-
 interface NarrowingSpec {
-  key: Exclude<NarrowingKey, "actionability">;
+  key: NarrowingKey;
   facet: PerformanceFacetKey;
   anyLabel: string;
 }
 
 /**
  * The server filters behind "More filters". Actionability is not among them:
- * the actionability bar is that axis's one control.
+ * the actionability bar is that axis's one control. Context is offered only
+ * in Everything, where more than production is listed.
  */
 const NARROWING: NarrowingSpec[] = [
+  { key: "context", facet: "context", anyLabel: "Any context" },
   { key: "boundary", facet: "boundary", anyLabel: "Any" },
   { key: "confidence", facet: "confidence", anyLabel: "Any" },
-  // Unproven causes (loop size unknown) are counted but never queued by default.
-  { key: "proof", facet: "proof", anyLabel: "Measured only" },
-  // Startup, CLI, tooling and test loops run once per process, so the default
-  // leaves them out; each role stays one selection away.
-  { key: "role", facet: "role", anyLabel: "Served paths" },
+  { key: "proof", facet: "proof", anyLabel: "Any" },
+  { key: "role", facet: "role", anyLabel: "Any" },
 ];
 
 /**
@@ -150,20 +87,24 @@ function NarrowingControl({
 }
 
 /**
- * Context and sort stay visible; the rest of the server filters sit behind
- * one disclosure, which states how many are active while it is closed.
+ * Scope and sort stay visible; the rest of the server filters sit behind one
+ * disclosure, which states how many are active while it is closed.
  */
 export function NarrowingFilters({
   filters,
   facets,
+  keys,
   onChange,
 }: {
   filters: PerformanceFilterState;
   facets: PerformanceFacets;
+  /** The filters the current scope can narrow by. */
+  keys: readonly NarrowingKey[];
   onChange: (key: NarrowingKey, value: string | null) => void;
 }) {
-  const active = NARROWING.filter(({ key }) => filters[key] !== null).length;
-  const controls = NARROWING.filter((spec) => (facets[spec.facet] ?? []).length > 0).map((spec) => (
+  const specs = NARROWING.filter((spec) => keys.includes(spec.key));
+  const active = specs.filter(({ key }) => filters[key] !== null).length;
+  const controls = specs.filter((spec) => (facets[spec.facet] ?? []).length > 0).map((spec) => (
     <NarrowingControl key={spec.key} spec={spec} filters={filters} facets={facets} onChange={onChange} />
   ));
   if (controls.length === 0) return null;
