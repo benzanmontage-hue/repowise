@@ -80,60 +80,76 @@ const offscreen = (s: { x: number; y: number; r: number }, view: View) =>
 const dense = (screenR: number, files: number, cap = Infinity) =>
   files > 0 && Math.min(Math.PI * screenR * screenR, cap) / files >= FILE_DENSITY_PX2;
 
+type Screen = { x: number; y: number; r: number };
+
+/** One frame's walk: the input, and the view it fills in. */
+interface Walk {
+  input: ViewInput;
+  out: FieldView;
+}
+
+/** Draw a host's dots when they are dense enough; true when drawn. */
+function tryHost(w: Walk, key: string): boolean {
+  const i = w.input.hostIndex.get(key);
+  if (i === undefined) return false;
+  const h = w.input.hosts[i]!;
+  if (!dense(h.circle.r * w.input.cam.scale, h.nodes.length)) return false;
+  w.out.drawnHosts[i] = 1;
+  return true;
+}
+
+/**
+ * Record what this area needs loaded. Returns whether its files are covered
+ * for the areas below it, so only the shallowest dense area is fetched.
+ */
+function noteWants(w: Walk, path: string, s: Screen, covered: boolean): boolean {
+  const { index, view } = w.input;
+  const area = index.areas.get(path)!;
+  const big = s.r >= OPEN_PX;
+  if (big && area.hasChildren && !index.expanded.has(path)) w.out.wantChildren.push(path);
+  if (covered || w.input.filesCovered(path)) return true;
+  // Judged on the part of the disc the canvas shows: a disc far larger than
+  // the screen spreads its files over space nobody is looking at.
+  if (big && area.fileCount <= MAX_AREA_FILES && dense(s.r, area.fileCount, view.w * view.h)) {
+    w.out.wantFiles.push(path);
+    return true;
+  }
+  return false;
+}
+
+/** An area's own-files slot beside its sub-areas: dots when dense, else a quiet disc. */
+function visitSlot(w: Walk, path: string): void {
+  const slot = w.input.geo.slots.get(path);
+  if (!slot || tryHost(w, `d:${path}`)) return;
+  const ss = toScreen(slot, w.input.cam, w.input.view);
+  if (ss.r >= MIN_AREA_PX && !offscreen(ss, w.input.view)) w.out.discs.push({ path, ...ss, state: "slot" });
+}
+
+function visit(w: Walk, path: string, covered: boolean): void {
+  const { index, geo, cam, view } = w.input;
+  const circle = geo.circles.get(path);
+  if (!circle || !index.areas.has(path)) return;
+  const s = toScreen(circle, cam, view);
+  if (s.r < MIN_AREA_PX || offscreen(s, view)) return;
+
+  const below = noteWants(w, path, s, covered);
+  const kids = index.expanded.has(path) ? displayChildren(index, path) : [];
+  const leafFiles = kids.length === 0 && (tryHost(w, `d:${path}`) || tryHost(w, `w:${path}`));
+  const open = path === ROOT_AREA || (s.r >= OPEN_PX && kids.length > 0) || leafFiles;
+  w.out.discs.push({ path, ...s, state: open ? "open" : "closed" });
+  if (!open || kids.length === 0) return;
+  for (const k of kids) visit(w, k, below);
+  visitSlot(w, path);
+}
+
 export function computeView(input: ViewInput): FieldView {
-  const { index, geo, hosts, cam, view } = input;
-  const hostAt = input.hostIndex;
   const out: FieldView = {
     discs: [],
-    drawnHosts: new Uint8Array(hosts.length),
+    drawnHosts: new Uint8Array(input.hosts.length),
     wantChildren: [],
     wantFiles: [],
   };
-
-  /** Draw a host's dots when they are dense enough; true when drawn. */
-  const tryHost = (key: string): boolean => {
-    const i = hostAt.get(key);
-    if (i === undefined) return false;
-    const h = hosts[i]!;
-    if (!dense(h.circle.r * cam.scale, h.nodes.length)) return false;
-    out.drawnHosts[i] = 1;
-    return true;
-  };
-
-  const visit = (path: string, covered: boolean) => {
-    const circle = geo.circles.get(path);
-    const area = index.areas.get(path);
-    if (!circle || !area) return;
-    const s = toScreen(circle, cam, view);
-    if (s.r < MIN_AREA_PX || offscreen(s, view)) return;
-
-    const expanded = index.expanded.has(path);
-    const big = s.r >= OPEN_PX;
-    if (big && area.hasChildren && !expanded) out.wantChildren.push(path);
-    const isCovered = covered || input.filesCovered(path);
-    // Judged on the part of the disc the canvas shows: a disc far larger than
-    // the screen spreads its files over space nobody is looking at.
-    const onScreen = view.w * view.h;
-    if (!isCovered && big && area.fileCount <= MAX_AREA_FILES && dense(s.r, area.fileCount, onScreen)) {
-      out.wantFiles.push(path);
-    }
-    const passCovered = isCovered || out.wantFiles[out.wantFiles.length - 1] === path;
-
-    const kids = expanded ? displayChildren(index, path) : [];
-    const slot = geo.slots.get(path);
-    const leafFiles = kids.length === 0 && (tryHost(`d:${path}`) || tryHost(`w:${path}`));
-    const open = path === ROOT_AREA || (big && kids.length > 0) || leafFiles;
-    out.discs.push({ path, ...s, state: open ? "open" : "closed" });
-    if (!open) return;
-
-    for (const k of kids) visit(k, passCovered);
-    if (slot && kids.length > 0 && !tryHost(`d:${path}`)) {
-      const ss = toScreen(slot, cam, view);
-      if (ss.r >= MIN_AREA_PX && !offscreen(ss, view)) out.discs.push({ path, ...ss, state: "slot" });
-    }
-  };
-
-  visit(ROOT_AREA, false);
+  visit({ input, out }, ROOT_AREA, false);
   return out;
 }
 
