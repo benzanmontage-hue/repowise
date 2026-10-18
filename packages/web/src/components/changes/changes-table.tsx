@@ -45,6 +45,7 @@ export function ChangesTable({ repoId, rows }: { repoId: string; rows: ChangeLis
     neutral: t("healthLabels.neutral"),
     notCompared: t("healthLabels.notCompared"),
     partial: t("healthLabels.partial"),
+    stale: t("healthLabels.stale"),
   };
 
   const columns: ResponsiveColumn<ChangeListItem>[] = [

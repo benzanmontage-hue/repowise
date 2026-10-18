@@ -109,7 +109,7 @@ describe("ByChangeView", () => {
     expect(screen.getAllByText("+3").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Worse").length).toBeGreaterThan(0);
     expect(screen.getAllByText("−2").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Not compared").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Not yet analysed").length).toBeGreaterThan(0);
   });
 
   it("filters to changes needing attention and says what the filter covers", async () => {

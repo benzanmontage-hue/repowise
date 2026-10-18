@@ -27,7 +27,7 @@ describe("healthDeltaKind", () => {
 describe("HealthDeltaMark", () => {
   it("says a change was not compared rather than reading it as clean", () => {
     render(<HealthDeltaMark delta={null} />);
-    expect(screen.getByText("Not compared")).toBeTruthy();
+    expect(screen.getByText("Not yet analysed")).toBeTruthy();
   });
 
   it("colours only a real improvement green and a regression red", () => {
@@ -53,5 +53,13 @@ describe("HealthDeltaMark", () => {
   it("names a partial comparison", () => {
     render(<HealthDeltaMark delta={{ ...d(1, 0, 0), status: "partial" }} />);
     expect(screen.getByText("Part of this change was not compared")).toBeTruthy();
+  });
+
+  it("shows a stale delta's direction without colour or counts", () => {
+    const { container } = render(<HealthDeltaMark delta={{ ...d(2, 0, 0), stale: true }} />);
+    expect(screen.getByText("Worse")).toBeTruthy();
+    expect(screen.queryByText("−2")).toBeNull();
+    expect(container.innerHTML).not.toContain("--color-error");
+    expect(screen.getByText(/older analyzer/)).toBeTruthy();
   });
 });

@@ -16,6 +16,8 @@ export interface HealthDeltaCounts {
   kind?: HealthDeltaKind | undefined;
   /** `partial` when part of the change was not compared. */
   status?: string | undefined;
+  /** Written by an older analyzer: the direction holds, the counts do not compare. */
+  stale?: boolean | undefined;
 }
 
 /** Findings the change made better: resolved, plus improved when known. */

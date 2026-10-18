@@ -7,15 +7,16 @@ import {
   type HealthDeltaKind,
 } from "./health-delta";
 
-export type HealthDeltaLabels = Record<HealthDeltaKind | "notCompared" | "partial", string>;
+export type HealthDeltaLabels = Record<HealthDeltaKind | "notCompared" | "partial" | "stale", string>;
 
 const DEFAULT_LABELS: HealthDeltaLabels = {
   improved: "Better",
   worsened: "Worse",
   mixed: "Mixed",
   neutral: "No change",
-  notCompared: "Not compared",
+  notCompared: "Not yet analysed",
   partial: "Part of this change was not compared",
+  stale: "From an older analyzer: the direction holds, the counts do not compare",
 };
 
 /** Green only for a real improvement, red only for a regression; a mixed or
@@ -51,7 +52,8 @@ export interface HealthDeltaMarkProps {
 /**
  * What a change did to code health, as a dot, a word and the signed finding
  * counts behind it ("Better +3", "Worse -2", "Mixed +3 -1"). A neutral result
- * renders quietly: it is the default state, not something to mark.
+ * renders quietly: it is the default state, not something to mark. A stale
+ * delta (older analyzer) shows its word and a hollow dot only.
  */
 export function HealthDeltaMark({ delta, labels, className }: HealthDeltaMarkProps) {
   const l = { ...DEFAULT_LABELS, ...labels };
@@ -65,20 +67,32 @@ export function HealthDeltaMark({ delta, labels, className }: HealthDeltaMarkPro
   const kind = healthDeltaKind(delta);
   const partial = delta.status === "partial";
   const quiet = kind === "neutral";
+  // A stale delta keeps its direction but drops its colour and figures.
+  const stale = !!delta.stale;
   return (
     <span
-      className={cn("inline-flex items-center gap-1.5 whitespace-nowrap text-xs", TEXT[kind], className)}
-      title={partial ? l.partial : undefined}
+      className={cn(
+        "inline-flex items-center gap-1.5 whitespace-nowrap text-xs",
+        stale ? "text-[var(--color-text-tertiary)]" : TEXT[kind],
+        className,
+      )}
+      title={stale ? l.stale : partial ? l.partial : undefined}
     >
-      {!quiet && <span aria-hidden className={cn("h-1.5 w-1.5 shrink-0 rounded-full", DOT[kind])} />}
+      {!quiet && (
+        <span
+          aria-hidden
+          className={cn("h-1.5 w-1.5 shrink-0 rounded-full", stale ? "border border-current" : DOT[kind])}
+        />
+      )}
       <span className={quiet ? undefined : "font-medium"}>
         {l[kind]}
         {partial && <span aria-hidden>*</span>}
       </span>
-      {!quiet && (
+      {!quiet && !stale && (
         <span className="font-mono tabular-nums">{signedFigures(betterCount(delta), worseCount(delta))}</span>
       )}
       {partial && <span className="sr-only">{l.partial}</span>}
+      {stale && <span className="sr-only">{l.stale}</span>}
     </span>
   );
 }
