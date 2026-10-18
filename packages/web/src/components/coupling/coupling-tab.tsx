@@ -66,7 +66,8 @@ export function CouplingTab({ repoId }: { repoId: string }) {
   );
   // File pairs are placed at the depth the area list was grouped at, so the
   // pair a reader clicked holds exactly the files its row counted.
-  const depth = areas.data?.depth;
+  // Not while the list revalidates: the kept response may hold the old depth.
+  const depth = areas.isValidating ? undefined : areas.data?.depth;
   const pairQuery =
     selection && depth
       ? {
@@ -80,10 +81,11 @@ export function CouplingTab({ repoId }: { repoId: string }) {
       : null;
   const graph = useSWR(
     pairQuery ? ["coupling", repoId, pairQuery] : null,
-    () => getCoupling(repoId, pairQuery!),
-    // No previous data: a new pair must not render under the last pair's header.
-    { revalidateOnFocus: false },
+    async () => ({ pair: url.pair, graph: await getCoupling(repoId, pairQuery!) }),
+    { revalidateOnFocus: false, keepPreviousData: true },
   );
+  // Kept data shows through "Load more"; a different pair's data never does.
+  const pairGraph = graph.data?.pair === url.pair ? graph.data.graph : undefined;
   const { repo } = useRepo(repoId);
   const { data: workspace } = useSWR("workspace:info", () => getWorkspace(), {
     revalidateOnFocus: false,
@@ -131,12 +133,12 @@ export function CouplingTab({ repoId }: { repoId: string }) {
           message={toFriendlyMessage(graph.error)}
           onRetry={() => void graph.mutate()}
         />
-      ) : !graph.data ? (
+      ) : !pairGraph ? (
         <LoadingRows />
       ) : (
         <CouplingExplorer
           key={url.pair ?? ""}
-          data={graph.data}
+          data={pairGraph}
           repoLinkPrefix={`/repos/${repoId}`}
           {...(repo?.name ? { repoName: repo.name } : {})}
           LinkComponent={Link}

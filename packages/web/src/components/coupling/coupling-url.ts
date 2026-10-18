@@ -41,7 +41,8 @@ export function filtersFromUrl(s: UrlState): CouplingAreaFilters {
     includeTests: s.tests,
     minSupport: Math.max(s.min, 0),
     recentDays: s.recent && s.recent > 0 ? s.recent : null,
-    depth: s.depth && s.depth > 0 ? s.depth : null,
+    // The route accepts 1-6; a hand-edited link past that falls back to the default.
+    depth: s.depth && s.depth > 0 && s.depth <= 6 ? s.depth : null,
   };
 }
 

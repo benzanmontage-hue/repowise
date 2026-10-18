@@ -97,6 +97,9 @@ async def coupling(
     and ``coupled_files`` count what the filters kept, before the cap.
     """
     await _require_repo(session, repo_id)
+    if partner is not None and area is None:
+        raise HTTPException(status_code=422, detail="partner needs area")
+    # An empty ``area`` is the root-files area, as its area-pair row names it.
     scope = replace(scope, area=_optional_area(area), partner=_optional_area(partner))
     graph, depth = await coupling_answer(
         session, repo_id, ("graph", scope, limit), lambda m: graph_payload(m, scope, limit)

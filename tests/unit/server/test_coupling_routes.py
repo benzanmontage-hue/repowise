@@ -91,6 +91,7 @@ async def test_graph_filters_and_stamps_cross_area(app, client):
         ("src/core/x.py", "src/web/b.ts")
     ]
     assert (await client.get(url, params={"min_support": 3})).json()["total_edges"] == 3
+    assert (await client.get(url, params={"partner": "src/web"})).status_code == 422
 
 
 async def test_area_pairs_rank_unexplained_first(app, client):

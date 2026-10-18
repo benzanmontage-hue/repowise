@@ -38,6 +38,15 @@ function Toggle({
   );
 }
 
+/** *options*, plus *value* when a shared link carries one the list does not offer. */
+function withCurrent(
+  options: { value: string; label: string }[],
+  value: string,
+  label: (value: string) => string,
+): { value: string; label: string }[] {
+  return options.some((o) => o.value === value) ? options : [...options, { value, label: label(value) }];
+}
+
 function Select({
   label,
   value,
@@ -87,28 +96,40 @@ export function CouplingAreaFiltersBar({
       <Select
         label={copy.minSupport}
         value={String(value.minSupport)}
-        options={SUPPORT_STEPS.map((n) => ({
-          value: String(n),
-          label: n === 0 ? copy.anySupport : copy.atLeast(n),
-        }))}
+        options={withCurrent(
+          SUPPORT_STEPS.map((n) => ({
+            value: String(n),
+            label: n === 0 ? copy.anySupport : copy.atLeast(n),
+          })),
+          String(value.minSupport),
+          (v) => copy.atLeast(Number(v)),
+        )}
         onChange={(v) => set({ minSupport: Number(v) })}
       />
       <Select
         label={copy.recency}
         value={String(value.recentDays ?? "")}
-        options={[
-          { value: "", label: copy.anyTime },
-          ...RECENCY_STEPS.map((d) => ({ value: String(d), label: copy.lastDays(d) })),
-        ]}
+        options={withCurrent(
+          [
+            { value: "", label: copy.anyTime },
+            ...RECENCY_STEPS.map((d) => ({ value: String(d), label: copy.lastDays(d) })),
+          ],
+          String(value.recentDays ?? ""),
+          (v) => copy.lastDays(Number(v)),
+        )}
         onChange={(v) => set({ recentDays: v ? Number(v) : null })}
       />
       <Select
         label={copy.depth}
         value={String(value.depth ?? "")}
-        options={[
-          { value: "", label: copy.autoDepth(resolvedDepth) },
-          ...DEPTHS.map((d) => ({ value: String(d), label: String(d) })),
-        ]}
+        options={withCurrent(
+          [
+            { value: "", label: copy.autoDepth(resolvedDepth) },
+            ...DEPTHS.map((d) => ({ value: String(d), label: String(d) })),
+          ],
+          String(value.depth ?? ""),
+          (v) => v,
+        )}
         onChange={(v) => set({ depth: v ? Number(v) : null })}
       />
     </div>
