@@ -40,6 +40,26 @@ export function writeDirectoryFilters(sp: URLSearchParams, f: OwnerDirectoryFilt
   return next.toString();
 }
 
+/** The table's filters as their query string alone; equal strings mean the same view. */
+export function directoryFiltersKey(f: OwnerDirectoryFilters): string {
+  return writeDirectoryFilters(new URLSearchParams(), f);
+}
+
+/**
+ * Filters to adopt from a URL the table did not write itself (a link followed
+ * while it stays mounted), or null when the URL is an echo of one of its
+ * pending writes (*written*, oldest first) or already says what it shows.
+ */
+export function externalDirectoryFilters(
+  sp: URLSearchParams,
+  written: readonly string[],
+  shown: OwnerDirectoryFilters,
+): OwnerDirectoryFilters | null {
+  const incoming = directoryFiltersFromParams(sp);
+  const key = directoryFiltersKey(incoming);
+  return written.includes(key) || key === directoryFiltersKey(shown) ? null : incoming;
+}
+
 export const CONTRIBUTOR_TABS = ["overview", "risks", "loss", "offboarding"] as const;
 export type ContributorTab = (typeof CONTRIBUTOR_TABS)[number];
 
