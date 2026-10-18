@@ -1,13 +1,13 @@
 /**
- * Semantic zoom, decided once per frame: which areas are one solid disc,
- * which are open rings showing what is inside, which hosts paint their file
+ * Semantic zoom, decided once per frame: which areas are solid discs, which
+ * are faint containers around what is inside, which hosts paint their file
  * dots, and what the field should load next.
  *
- * Zoomed out, an area is one disc in its own colour. It opens when it is big
- * enough on screen to hold something legible: its sub-areas once it clears
- * {@link OPEN_PX}, its files once each one would get {@link FILE_DENSITY_PX2}
- * of screen. Below {@link MIN_AREA_PX} it is not drawn at all; its parent's
- * colour already says what it would.
+ * Files are texture at every zoom: a folder's files load and draw as soon as
+ * a dot would be at least a device pixel across ({@link MIN_DOT_DEVICE_R}),
+ * so the root already shows every file coloured by the lens. Below that, or
+ * before the files arrive, a folder is one solid disc in its own colour. A
+ * folder also opens to show its sub-folders once it clears {@link OPEN_PX}.
  *
  * Pure: a camera, a box and the laid-out field in, a plain view out.
  */
@@ -18,12 +18,17 @@ import type { AreaGeometry, Circle, Host } from "./area-layout";
 import { displayChildren } from "./area-paths";
 import type { Cam, View } from "./paint";
 
-/** An area this small on screen is left to its parent's disc. */
+/** An area this small on screen draws no disc of its own; its files may still show. */
 export const MIN_AREA_PX = 3;
-/** Screen radius at which an area opens to show its sub-areas. */
+/** Screen radius at which an area opens to show its sub-areas without its files. */
 export const OPEN_PX = 90;
-/** Screen area each file needs before an area's files are drawn. */
-export const FILE_DENSITY_PX2 = 140;
+/**
+ * Smallest dot worth drawing, as a radius in device pixels: half a device
+ * pixel is a dot one device pixel across. Below it a folder stays solid.
+ */
+export const MIN_DOT_DEVICE_R = 0.5;
+/** Share of a packed disc its dots cover, for estimating a dot's size before layout. */
+const PACK_FILL = 0.5;
 /** Largest area whose files are fetched in one request (the server's cap). */
 export const MAX_AREA_FILES = 8000;
 /** Pan slack, so discs just off screen are ready when they slide in. */
@@ -77,8 +82,12 @@ const offscreen = (s: { x: number; y: number; r: number }, view: View) =>
   s.x - s.r > view.w + MARGIN_PX ||
   s.y - s.r > view.h + MARGIN_PX;
 
-const dense = (screenR: number, files: number, cap = Infinity) =>
-  files > 0 && Math.min(Math.PI * screenR * screenR, cap) / files >= FILE_DENSITY_PX2;
+/** Whether dots of this world radius are at least a device pixel across. */
+const visibleDot = (worldR: number, cam: Cam, view: View) => worldR * cam.scale * view.dpr >= MIN_DOT_DEVICE_R;
+
+/** A disc of screen radius `r` holding `files` dots: would they be visible once loaded? */
+const dotsWouldShow = (r: number, files: number, view: View) =>
+  files > 0 && r * Math.sqrt(PACK_FILL / files) * view.dpr >= MIN_DOT_DEVICE_R;
 
 type Screen = { x: number; y: number; r: number };
 
@@ -93,7 +102,7 @@ function tryHost(w: Walk, key: string): boolean {
   const i = w.input.hostIndex.get(key);
   if (i === undefined) return false;
   const h = w.input.hosts[i]!;
-  if (!dense(h.circle.r * w.input.cam.scale, h.nodes.length)) return false;
+  if (!visibleDot(h.meanR, w.input.cam, w.input.view)) return false;
   w.out.drawnHosts[i] = 1;
   return true;
 }
@@ -108,9 +117,9 @@ function noteWants(w: Walk, path: string, s: Screen, covered: boolean): boolean 
   const big = s.r >= OPEN_PX;
   if (big && area.hasChildren && !index.expanded.has(path)) w.out.wantChildren.push(path);
   if (covered || w.input.filesCovered(path)) return true;
-  // Judged on the part of the disc the canvas shows: a disc far larger than
-  // the screen spreads its files over space nobody is looking at.
-  if (big && area.fileCount <= MAX_AREA_FILES && dense(s.r, area.fileCount, view.w * view.h)) {
+  // Files load as soon as their dots would show, so the field has texture
+  // from the root down; the shallowest such area is the one fetched.
+  if (area.fileCount <= MAX_AREA_FILES && dotsWouldShow(s.r, area.fileCount, view)) {
     w.out.wantFiles.push(path);
     return true;
   }
@@ -130,13 +139,15 @@ function visit(w: Walk, path: string, covered: boolean): void {
   const circle = geo.circles.get(path);
   if (!circle || !index.areas.has(path)) return;
   const s = toScreen(circle, cam, view);
-  if (s.r < MIN_AREA_PX || offscreen(s, view)) return;
+  if (offscreen(s, view)) return;
 
   const below = noteWants(w, path, s, covered);
   const kids = index.expanded.has(path) ? displayChildren(index, path) : [];
   const leafFiles = kids.length === 0 && (tryHost(w, `d:${path}`) || tryHost(w, `w:${path}`));
-  const open = path === ROOT_AREA || (s.r >= OPEN_PX && kids.length > 0) || leafFiles;
-  w.out.discs.push({ path, ...s, state: open ? "open" : "closed" });
+  // A folder whose files are on the canvas is a faint container around them.
+  const textured = kids.length > 0 && below && dotsWouldShow(s.r, index.areas.get(path)!.fileCount, view);
+  const open = path === ROOT_AREA || (s.r >= OPEN_PX && kids.length > 0) || leafFiles || textured;
+  if (s.r >= MIN_AREA_PX) w.out.discs.push({ path, ...s, state: open ? "open" : "closed" });
   if (!open || kids.length === 0) return;
   for (const k of kids) visit(w, k, below);
   visitSlot(w, path);

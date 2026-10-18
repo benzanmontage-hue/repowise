@@ -112,6 +112,8 @@ export interface Host {
   circle: Circle;
   /** Indices into the scene's node list. */
   nodes: Int32Array;
+  /** Mean dot radius in world units, for the "is a dot still visible" test. */
+  meanR: number;
 }
 
 export interface PlacedFiles {
@@ -171,6 +173,7 @@ export function layoutFiles(
       direct: g.host.direct,
       circle: g.circle,
       nodes: Int32Array.from({ length: nodes.length - start }, (_, i) => start + i),
+      meanR: (local.reduce((sum, n) => sum + n.r, 0) / Math.max(local.length, 1)) * k,
     });
   }
   const hostIndex = new Map(hosts.map((h, i) => [h.key, i]));

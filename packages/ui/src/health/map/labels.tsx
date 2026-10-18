@@ -38,12 +38,14 @@ interface Box {
 /** Label sizes are measured once and cached, so a frame rarely forces layout. */
 const sizes = new WeakMap<HTMLElement, { w: number; h: number }>();
 function sizeOf(el: HTMLElement): { w: number; h: number } {
+  // Keyed on the text and the state: an open folder lays its label out in a row.
+  const key = `${el.textContent ?? ""}|${el.dataset.state ?? ""}`;
   const cached = sizes.get(el);
-  if (cached && el.dataset.measured === el.textContent) return cached;
+  if (cached && el.dataset.measured === key) return cached;
   const size = { w: el.offsetWidth || 120, h: el.offsetHeight || LABEL_H * 2 };
   if (el.offsetWidth > 0) {
     sizes.set(el, size);
-    el.dataset.measured = el.textContent ?? "";
+    el.dataset.measured = key;
   }
   return size;
 }
@@ -69,7 +71,7 @@ function boxFor(d: DiscView, el: HTMLElement, viewW: number): Box | null {
   if (y < 4) y = Math.max(4, d.y - d.r + 8);
   // A ring wider than the canvas keeps its name on the canvas.
   const x = Math.min(Math.max(d.x - w / 2, 4), viewW - w - 4);
-  return { x, y, w, h: LABEL_H };
+  return { x, y, w, h: Math.max(h, LABEL_H) };
 }
 
 /**
@@ -131,7 +133,7 @@ export function AreaLabels({
           title={l.path || l.name}
           onClick={() => onSelect(l.path)}
           data-area={l.path}
-          className={`group pointer-events-auto absolute left-0 top-0 flex max-w-[220px] flex-col items-center rounded px-1.5 py-0.5 text-center leading-tight bg-[var(--color-bg-glass)] ${
+          className={`group pointer-events-auto absolute left-0 top-0 flex max-w-[220px] flex-col items-center rounded px-1.5 py-0.5 text-center leading-tight bg-[var(--color-bg-glass)] data-[state=open]:flex-row data-[state=open]:gap-1.5 ${
             cursor === l.path ? "ring-2 ring-[var(--color-accent-primary)]" : ""
           }`}
           style={{ visibility: "hidden" }}
@@ -146,7 +148,7 @@ export function AreaLabels({
             {l.name}
           </span>
           {l.text ? (
-            <span className="font-mono text-xs font-semibold tabular-nums text-[var(--color-text-primary)] group-data-[state=open]:hidden">
+            <span className="font-mono text-xs font-semibold tabular-nums text-[var(--color-text-primary)] group-data-[state=open]:text-[10px]">
               {l.text}
             </span>
           ) : null}

@@ -196,10 +196,17 @@ describe("semantic zoom", () => {
   const at = (cam: { cx: number; cy: number; scale: number }) =>
     computeView({ index, geo, hosts: placed.hosts, hostIndex: placed.hostIndex, filesCovered: () => true, cam, view });
 
-  it("zoomed out, draws areas as discs and no file dots", () => {
+  it("zoomed out, loaded files are texture inside faint folder containers", () => {
     const v = at(fitCamera(view.w, view.h));
-    expect(v.discs.some((d) => d.state === "closed")).toBe(true);
+    expect(v.drawnHosts.some((x) => x === 1)).toBe(true);
+    expect(v.discs.find((d) => d.path === "pkg0")!.state).toBe("open");
+  });
+
+  it("once a dot would be under a device pixel, folders are solid and draw no dots", () => {
+    const far = fitCamera(view.w, view.h);
+    const v = at({ ...far, scale: far.scale / 15 });
     expect(v.drawnHosts.every((x) => x === 0)).toBe(true);
+    expect(v.discs.some((d) => d.state === "closed")).toBe(true);
   });
 
   it("zoomed into one leaf area, draws its files", () => {
@@ -212,7 +219,7 @@ describe("semantic zoom", () => {
     expect(discAt(v, view.w / 2, view.h / 2)!.path).toBe(leaf);
   });
 
-  it("asks for children and files only for what is big enough on screen", () => {
+  it("asks for children when an area opens, and files from the shallowest area that fits", () => {
     const lazy = mergeAreaTree(
       EMPTY_AREA_INDEX,
       tree(node("", null, 9000, 40000, { has_children: true }), 1, [
