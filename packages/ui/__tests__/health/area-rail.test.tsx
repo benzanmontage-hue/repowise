@@ -87,9 +87,9 @@ describe("area lenses", () => {
   });
 
   it("colours an area by its rollup, else by its loaded files", () => {
-    const fills = areaFills(index, OVERLAY_SPECS.health, files);
+    const fills = areaFills(index, OVERLAY_SPECS.health, files).fill;
     expect(fills.get("app/bad/inner")).toBe(healthBandMapFill("at_risk"));
-    const maint = areaFills(index, OVERLAY_SPECS.maintainability, files);
+    const maint = areaFills(index, OVERLAY_SPECS.maintainability, files).fill;
     expect(maint.get("lib")).toBe(NEUTRAL_FILL); // no maintainability on these rows
   });
 });

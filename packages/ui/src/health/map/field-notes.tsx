@@ -16,6 +16,7 @@ import { AreaHoverCard, HoverCard } from "./overlay";
 import { LoadedNote, MapScopeNote } from "./scope-note";
 import type { CodeHealthMapFile, CodeHealthOverlay, MapScope } from "./types";
 import type { Hover } from "./use-map-pointer";
+import type { AreaAnalysed } from "./fills";
 import { ROOT_AREA } from "../../lib/areas";
 
 /** The area names the canvas places and the breadcrumb above it. */
@@ -103,6 +104,7 @@ export function FieldNotes({
 /** The card for whatever the pointer is over, in the active lens's terms. */
 export function FieldHover({
   hover,
+  analysed,
   index,
   lens,
   overlay,
@@ -111,6 +113,8 @@ export function FieldHover({
   height,
 }: {
   hover: Hover | null;
+  /** How many of each area's loaded files the active lens analysed. */
+  analysed: ReadonlyMap<string, AreaAnalysed>;
   index: AreaIndex;
   lens: MapLens;
   overlay: CodeHealthOverlay;
@@ -130,6 +134,8 @@ export function FieldHover({
       slot={hover.slot}
       figure={lens.areaText?.(area) ?? null}
       lensLabel={lens.label}
+      analysed={analysed.get(hover.path) ?? null}
+      lensCoversFiles={Boolean(lens.analysed) && (lens.areaFill?.(area) ?? null) === null}
       x={hover.x}
       y={hover.y}
       width={width}

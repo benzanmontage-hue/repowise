@@ -9,6 +9,7 @@
 
 import { performanceSentence, scoreText } from "./lens";
 import type { MapArea } from "./areas";
+import type { AreaAnalysed } from "./fills";
 import type { CodeHealthMapFile, CodeHealthOverlay } from "./types";
 
 /** Match rings drawn at once. Beyond this the field is the answer, not a mark. */
@@ -58,6 +59,8 @@ export function AreaHoverCard({
   slot,
   figure,
   lensLabel,
+  analysed,
+  lensCoversFiles,
   x,
   y,
   width,
@@ -68,6 +71,10 @@ export function AreaHoverCard({
   slot: boolean;
   figure: string | null;
   lensLabel: string;
+  /** How many of its loaded files the lens analysed, or null when none are loaded. */
+  analysed: AreaAnalysed | null;
+  /** The lens tells analysed files apart, so the card says how many it read. */
+  lensCoversFiles: boolean;
   x: number;
   y: number;
   width: number;
@@ -84,6 +91,13 @@ export function AreaHoverCard({
         {!slot && figure ? ` · ${lensLabel.toLowerCase()} ${figure}` : ""}
         {!slot ? " · click to open" : ""}
       </div>
+      {lensCoversFiles && !slot ? (
+        <div className="mt-0.5 text-[10px] leading-tight text-[var(--color-text-tertiary)] tabular-nums">
+          {analysed
+            ? `${analysed.analysed.toLocaleString()} of ${analysed.loaded.toLocaleString()} files analysed`
+            : "Files not loaded yet · zoom in to read them"}
+        </div>
+      ) : null}
     </div>
   );
 }

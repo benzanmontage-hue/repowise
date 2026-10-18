@@ -369,6 +369,7 @@ export function CodeHealthMap({
         />
         <FieldHover
           hover={hover}
+          analysed={model.areaAnalysed}
           index={index}
           lens={lens}
           overlay={overlay}

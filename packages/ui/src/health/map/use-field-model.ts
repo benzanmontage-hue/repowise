@@ -34,7 +34,8 @@ export function useFieldModel(
     () => scene.nodes.reduce((m, n) => Math.min(m, n.r), Infinity),
     [scene],
   );
-  const areaFill = useMemo(() => areaFills(index, lens, files), [index, lens, files]);
+  const fold = useMemo(() => areaFills(index, lens, files), [index, lens, files]);
+  const areaFill = fold.fill;
   const fills = useMemo(() => fileFills(scene, lens, areaFill), [scene, lens, areaFill]);
   const attention = useMemo(() => fills.filter(isLoudFill).length, [fills]);
 
@@ -61,6 +62,7 @@ export function useFieldModel(
     grid,
     minNodeR,
     areaFill,
+    areaAnalysed: fold.analysed,
     fills,
     attention,
     unplaced: placed.unplaced,

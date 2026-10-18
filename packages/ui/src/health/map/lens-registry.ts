@@ -16,7 +16,6 @@ import {
   HEALTH_UNSUPPORTED_LABEL,
   NEUTRAL_FILL,
   QUIET_FILL,
-  burdenBand,
   churnFill,
   coverageFill,
   performanceBurden,
@@ -42,8 +41,29 @@ function weightedMean(
   return w > 0 ? sum / w : null;
 }
 
-const anyFile = (pred: (f: CodeHealthMapFile) => boolean) => (files: readonly CodeHealthMapFile[]) =>
-  files.some(pred) ? NODE_RAMP_STOP.alert : NEUTRAL_FILL;
+/**
+ * Share of a folder's analysed files that carry something to fix, banded.
+ * A share, not a count: a count grows with the folder, so every big folder
+ * would read as worst. No green under these lenses, since an absence of
+ * findings is not a measurement of good: zero is the quiet neutral.
+ */
+const FLAGGED_STEPS = [0.1, 0.25] as const;
+function flaggedShareFill(files: readonly CodeHealthMapFile[], flagged: (f: CodeHealthMapFile) => boolean): string {
+  const share = files.filter(flagged).length / files.length;
+  if (share <= 0) return NEUTRAL_FILL;
+  if (share >= FLAGGED_STEPS[1]) return NODE_RAMP_STOP.alert;
+  if (share >= FLAGGED_STEPS[0]) return NODE_RAMP_STOP.serious;
+  return NODE_RAMP_STOP.warning;
+}
+const flaggedShare = (flagged: (f: CodeHealthMapFile) => boolean) => (files: readonly CodeHealthMapFile[]) =>
+  flaggedShareFill(files, flagged);
+
+/** A file a performance detector looked at: it has a count, and its language is covered. */
+const performanceAnalysed = (f: CodeHealthMapFile) => {
+  const state = performanceBurden(f).state;
+  return state !== "unsupported" && state !== "unknown";
+};
+const hasCause = (f: CodeHealthMapFile) => performanceBurden(f).count > 0;
 
 const pct = (v: number) => `${Math.round(v)}%`;
 
@@ -61,6 +81,7 @@ export const OVERLAY_SPECS: Record<Exclude<CodeHealthOverlay, AreaLensId>, FileL
     label: "Code health",
     caption: "disc = folder · size = lines of code · grey = not analysed",
     fill: (f) => scoreFill(f.score),
+    analysed: (f) => f.score != null,
     areaFill: (a) => (a.band ? healthBandMapFill(a.band) : NEUTRAL_FILL),
     areaText: (a) => (a.health == null ? null : formatScore(a.health)),
     legend: [...BAND_LEGEND, { fill: NEUTRAL_FILL, label: HEALTH_UNSUPPORTED_LABEL }],
@@ -70,18 +91,18 @@ export const OVERLAY_SPECS: Record<Exclude<CodeHealthOverlay, AreaLensId>, FileL
     label: "Maintainability",
     caption: "color = maintainability score · folders show their loaded files · grey = not measured",
     fill: (f) => scoreFill(f.maintainability_score),
+    analysed: (f) => f.maintainability_score != null,
     areaFromFiles: (files) => scoreFill(weightedMean(files, (f) => f.maintainability_score)),
     legend: [...BAND_LEGEND, { fill: NEUTRAL_FILL, label: "not measured" }],
   },
   performance: {
     id: "performance",
     label: "Performance",
-    caption: "colour = open causes, never a runtime measurement · no green: nothing here is proven fast",
+    caption:
+      "file = open causes · folder = share of its analysed files with one · never a runtime measurement · no green: nothing here is proven fast",
     fill: performanceFill,
-    areaFromFiles: (files) => {
-      const band = burdenBand(files.filter((f) => performanceBurden(f).count > 0).length);
-      return band === 0 ? NEUTRAL_FILL : BURDEN_FILL[band];
-    },
+    analysed: performanceAnalysed,
+    areaFromFiles: flaggedShare(hasCause),
     legend: [
       { group: "Open causes", fill: BURDEN_FILL[3], label: "5 or more" },
       { group: "Open causes", fill: BURDEN_FILL[2], label: "2 to 4" },
@@ -94,6 +115,7 @@ export const OVERLAY_SPECS: Record<Exclude<CodeHealthOverlay, AreaLensId>, FileL
     label: "Coverage",
     caption: "color = line coverage · grey = no coverage data",
     fill: (f) => coverageFill(f.line_coverage_pct),
+    analysed: (f) => f.line_coverage_pct != null,
     areaFill: (a) => (a.coveragePct === undefined ? null : coverageFill(a.coveragePct)),
     areaFromFiles: (files) => coverageFill(weightedMean(files, (f) => f.line_coverage_pct)),
     areaText: (a) => (a.coveragePct == null ? null : pct(a.coveragePct)),
@@ -110,6 +132,7 @@ export const OVERLAY_SPECS: Record<Exclude<CodeHealthOverlay, AreaLensId>, FileL
     label: "Churn",
     caption: "file = 90-day churn percentile · folder = share of its files that are hotspots",
     fill: (f) => churnFill(f.churn_percentile),
+    analysed: (f) => f.churn_percentile != null,
     areaFill: (a) =>
       a.hotspotCount === undefined || a.fileCount <= 0
         ? null
@@ -130,7 +153,8 @@ export const OVERLAY_SPECS: Record<Exclude<CodeHealthOverlay, AreaLensId>, FileL
     label: "Dead code",
     caption: "red = reclaimable lines · grey = clean",
     fill: (f) => ((f.dead_code_lines ?? 0) > 0 ? NODE_RAMP_STOP.alert : NEUTRAL_FILL),
-    areaFromFiles: anyFile((f) => (f.dead_code_lines ?? 0) > 0),
+    analysed: (f) => f.dead_code_lines != null,
+    areaFromFiles: flaggedShare((f) => (f.dead_code_lines ?? 0) > 0),
     legend: [
       { fill: NODE_RAMP_STOP.alert, label: "Has dead code" },
       { fill: NEUTRAL_FILL, label: "Clean" },
@@ -142,7 +166,8 @@ export const OVERLAY_SPECS: Record<Exclude<CodeHealthOverlay, AreaLensId>, FileL
     label: "Security",
     caption: "red = open findings · grey = clean",
     fill: (f) => ((f.security_findings ?? 0) > 0 ? NODE_RAMP_STOP.alert : NEUTRAL_FILL),
-    areaFromFiles: anyFile((f) => (f.security_findings ?? 0) > 0),
+    analysed: (f) => f.security_findings != null,
+    areaFromFiles: flaggedShare((f) => (f.security_findings ?? 0) > 0),
     legend: [
       { fill: NODE_RAMP_STOP.alert, label: "Has findings" },
       { fill: NEUTRAL_FILL, label: "Clean" },

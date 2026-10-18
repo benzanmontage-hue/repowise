@@ -70,7 +70,17 @@ export interface MapLens {
   fill?: (f: CodeHealthMapFile) => string;
   /** An area's fill from its rollup; `null` when the rollup lacks the signal. */
   areaFill?: (a: MapArea) => string | null;
-  /** An area's fill from its loaded files, when `areaFill` cannot say. */
+  /**
+   * Whether a file carries this lens's signal at all. A file that does not is
+   * not analysed: it is drawn grey and left out of every folder's fold, never
+   * read as the worst value. Absent: every file carries it.
+   */
+  analysed?: (f: CodeHealthMapFile) => boolean;
+  /**
+   * An area's fill from its loaded, analysed files, when `areaFill` cannot
+   * say. Never called with an empty list: a folder with no analysed file is
+   * grey. Fold by share, not by count, or every big folder reads as worst.
+   */
   areaFromFiles?: (files: readonly CodeHealthMapFile[]) => string;
   /** The short figure printed on an area's disc ("7.4", "62%"). */
   areaText?: (a: MapArea) => string | null;
