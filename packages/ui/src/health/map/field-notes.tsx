@@ -8,7 +8,8 @@
 
 import { useMemo } from "react";
 import type { AreaIndex } from "./areas";
-import { displayLabel, areaTrail } from "./area-paths";
+import { displayLabel, displayParent, areaTrail } from "./area-paths";
+import { truncatePath } from "../../lib/format";
 import type { AreaGeometry } from "./area-layout";
 import { HEALTH_UNSUPPORTED_NOTICE, noFileScored, type MapLens } from "./lens";
 import type { AreaLabel } from "./labels";
@@ -17,7 +18,48 @@ import { LoadedNote, MapScopeNote } from "./scope-note";
 import type { CodeHealthMapFile, CodeHealthOverlay, MapScope } from "./types";
 import type { Hover } from "./use-map-pointer";
 import type { AreaAnalysed } from "./fills";
+import type { MapCanvasLabels } from "./canvas-labels";
 import { ROOT_AREA } from "../../lib/areas";
+
+/** A sub-folder at least this share of its parent's radius visually is the parent. */
+const DOMINANT_SHARE = 0.75;
+/** Longest merged name, before the shared path shortening keeps its tail. */
+const MERGED_NAME_CHARS = 32;
+
+/**
+ * One label per visual disc. When one sub-folder fills its parent, the
+ * parent's label is dropped while open and the sub-folder's label carries the
+ * joined name ("core/src/repowise/core"), shortened from the front if long.
+ * Decided from the layout, so no frame pays for it.
+ */
+export function mergeDominantLabels(
+  index: AreaIndex,
+  geo: AreaGeometry,
+  areaText: ReadonlyMap<string, string | null>,
+  rootLabel: string,
+): AreaLabel[] {
+  const dominated = new Map<string, string>();
+  for (const [path, c] of geo.circles) {
+    const parent = displayParent(index, path);
+    const pc = parent ? geo.circles.get(parent) : undefined;
+    if (parent && pc && c.r >= pc.r * DOMINANT_SHARE) dominated.set(parent, path);
+  }
+  const nameOf = (path: string): string => {
+    const own = displayLabel(index, path, rootLabel);
+    const parent = displayParent(index, path);
+    return parent && parent !== ROOT_AREA && dominated.get(parent) === path
+      ? truncatePath(`${nameOf(parent)}/${own}`, MERGED_NAME_CHARS)
+      : own;
+  };
+  return [...geo.circles.keys()]
+    .filter((p) => p !== ROOT_AREA)
+    .map((path) => ({
+      path,
+      name: nameOf(path),
+      text: areaText.get(path) ?? null,
+      dominated: dominated.has(path),
+    }));
+}
 
 /** The area names the canvas places and the breadcrumb above it. */
 export function useAreaChrome(
@@ -28,17 +70,12 @@ export function useAreaChrome(
   rootLabel: string,
   onSelectArea: (path: string) => void,
 ) {
-  const labels = useMemo<AreaLabel[]>(
-    () =>
-      [...geo.circles.keys()]
-        .filter((p) => p !== ROOT_AREA)
-        .map((path) => ({
-          path,
-          name: displayLabel(index, path, rootLabel),
-          text: areaText.get(path) ?? null,
-        })),
-    [geo, index, areaText, rootLabel],
-  );
+  const labels = useMemo<AreaLabel[]>(() => mergeDominantLabels(index, geo, areaText, rootLabel), [
+    geo,
+    index,
+    areaText,
+    rootLabel,
+  ]);
   const trail = useMemo(
     () =>
       areaTrail(index, selected).map((path, i, all) => ({
@@ -106,6 +143,7 @@ export function FieldHover({
   hover,
   analysed,
   areaText,
+  labels,
   index,
   lens,
   overlay,
@@ -117,6 +155,7 @@ export function FieldHover({
   /** How many of each area's loaded files the active lens analysed. */
   analysed: ReadonlyMap<string, AreaAnalysed>;
   areaText: ReadonlyMap<string, string | null>;
+  labels: MapCanvasLabels;
   index: AreaIndex;
   lens: MapLens;
   overlay: CodeHealthOverlay;
@@ -137,6 +176,7 @@ export function FieldHover({
       figure={areaText.get(hover.path) ?? null}
       lensLabel={lens.label}
       analysed={analysed.get(hover.path) ?? null}
+      labels={labels}
       lensCoversFiles={Boolean(lens.analysed) && (lens.areaFill?.(area) ?? null) === null}
       x={hover.x}
       y={hover.y}

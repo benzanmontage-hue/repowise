@@ -39,6 +39,7 @@ import { ZOOM_STEP, useMapCamera } from "./map/use-map-camera";
 import { useHover, useMapPointer } from "./map/use-map-pointer";
 import { useKeyboardCursor, useMapKeyboard, type KeyboardCursor } from "./map/use-map-keyboard";
 import type { AreaSource } from "./map/use-area-source";
+import { DEFAULT_MAP_CANVAS_LABELS, type MapCanvasLabels } from "./map/canvas-labels";
 import type { CodeHealthMapFile, CodeHealthOverlay, MapScope } from "./map/types";
 
 export type { CodeHealthMapFile, CodeHealthOverlay, FileNode, MapScope, PerformanceActionability } from "./map/types";
@@ -75,6 +76,7 @@ export { buildHitGrid, hitTest } from "./map/hit-test";
 export { MapLegend, MapLensSwitcher } from "./map/legend";
 export { SEARCH_MARK_CAP } from "./map/overlay";
 export { useAreaSource, type AreaFetchers, type AreaSource } from "./map/use-area-source";
+export { DEFAULT_MAP_CANVAS_LABELS, type MapCanvasLabels } from "./map/canvas-labels";
 
 /** What the root disc is called in the breadcrumb and the key. */
 const ROOT_LABEL = "Repository";
@@ -134,6 +136,8 @@ export interface CodeHealthMapProps {
   rootLabel?: string;
   /** The canvas's accessible name and key help, for the active lens's label. */
   ariaLabel?: (lens: string) => string;
+  /** The words the canvas prints (folder chips, hover card), for translation. */
+  labels?: Partial<MapCanvasLabels>;
 }
 
 /** The selected area, owned by the host when it passes `onAreaChange`, local otherwise. */
@@ -174,7 +178,9 @@ export function CodeHealthMap({
   pending = false,
   rootLabel = ROOT_LABEL,
   ariaLabel = DEFAULT_ARIA_LABEL,
+  labels: labelOverrides,
 }: CodeHealthMapProps) {
+  const words = useMemo(() => ({ ...DEFAULT_MAP_CANVAS_LABELS, ...labelOverrides }), [labelOverrides]);
   const containerRef = useRef<HTMLDivElement>(null);
   const baseRef = useRef<HTMLCanvasElement>(null);
   const topRef = useRef<HTMLCanvasElement>(null);
@@ -185,7 +191,7 @@ export function CodeHealthMap({
   const derived = useMemo(() => (source ? null : deriveAreaIndex(files)), [source, files]);
   const index = source?.index ?? derived!;
   const fieldFiles = source?.files ?? files;
-  const lens = useMemo(() => hostLens ?? resolveLens(overlay, index), [hostLens, overlay, index]);
+  const lens = useMemo(() => hostLens ?? resolveLens(overlay, index, words), [hostLens, overlay, index, words]);
   const model = useFieldModel(index, fieldFiles, lens, search, highlightPaths);
   const { scene, geo } = model;
 
@@ -371,6 +377,7 @@ export function CodeHealthMap({
           hover={hover}
           analysed={model.areaAnalysed}
           areaText={model.areaText}
+          labels={words}
           index={index}
           lens={lens}
           overlay={overlay}

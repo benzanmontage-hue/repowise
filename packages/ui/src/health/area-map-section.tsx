@@ -176,7 +176,7 @@ export function AreaMapSection(props: AreaMapSectionProps) {
   const flatFiles = props.mapFeed?.files as CodeHealthMapFile[] | undefined;
   const derived = useMemo(() => (source || !flatFiles ? null : deriveAreaIndex(flatFiles)), [source, flatFiles]);
   const index = source?.index ?? derived;
-  const lens = useMemo(() => (index ? resolveLens(overlay, index) : undefined), [overlay, index]);
+  const lens = useMemo(() => (index ? resolveLens(overlay, index, labels) : undefined), [overlay, index, labels]);
   const nameOf = useCallback(
     (p: string) => (area && p.startsWith(`${area}/`) ? p.slice(area.length + 1) : p),
     [area],
@@ -237,6 +237,7 @@ export function AreaMapSection(props: AreaMapSectionProps) {
             errorTitle={labels.mapLoadError}
             ariaLabel={labels.mapAriaLabel}
             rootLabel={labels.repository}
+            labels={labels}
             files={flatFiles ?? []}
             {...(source ? { source } : {})}
             area={area}

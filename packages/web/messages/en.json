@@ -484,7 +484,15 @@
           "knowledge": "Knowledge risk",
           "dead-code": "Dead code",
           "security": "Security"
-        }
+        },
+        "hotspotChip": "{count} hot",
+        "hotspotChipScored": "{count} hot · {health}",
+        "fileCount": "{count, plural, one {# file} other {# files}}",
+        "openHint": "click to open",
+        "directFiles": "Files directly in {folder}",
+        "notLoaded": "Files not loaded yet · zoom in to read them",
+        "analysedFiles": "{analysed} of {loaded} files analysed",
+        "flaggedFiles": "{flagged} of {analysed} analysed files flagged"
       }
     },
     "knowledgeGraph": {

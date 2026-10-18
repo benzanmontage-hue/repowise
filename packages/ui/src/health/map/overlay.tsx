@@ -10,6 +10,7 @@
 import { performanceSentence, scoreText } from "./lens";
 import type { MapArea } from "./areas";
 import type { AreaAnalysed } from "./fills";
+import type { MapCanvasLabels } from "./canvas-labels";
 import type { CodeHealthMapFile, CodeHealthOverlay } from "./types";
 
 /** Match rings drawn at once. Beyond this the field is the answer, not a mark. */
@@ -40,11 +41,11 @@ const CARD_GAP = 16;
  * of the pointer near an edge so it is never clipped by the container.
  */
 /** What a folder's colour was read from, in its own counts. */
-function analysedLine(a: AreaAnalysed | null): string {
-  if (!a) return "Files not loaded yet · zoom in to read them";
-  const read = `${a.analysed.toLocaleString()} of ${a.loaded.toLocaleString()} files analysed`;
+function analysedLine(a: AreaAnalysed | null, labels: MapCanvasLabels): string {
+  if (!a) return labels.notLoaded;
+  const read = labels.analysedFiles(a.analysed, a.loaded);
   if (a.flagged === undefined || a.analysed === 0) return read;
-  return `${a.flagged.toLocaleString()} of ${a.analysed.toLocaleString()} analysed files flagged · ${read}`;
+  return `${labels.flaggedFiles(a.flagged, a.analysed)} · ${read}`;
 }
 
 /** Where a card opens beside the pointer, flipped near an edge. */
@@ -69,11 +70,13 @@ export function AreaHoverCard({
   lensLabel,
   analysed,
   lensCoversFiles,
+  labels,
   x,
   y,
   width,
   height,
 }: {
+  labels: MapCanvasLabels;
   area: MapArea;
   name: string;
   slot: boolean;
@@ -92,16 +95,16 @@ export function AreaHoverCard({
   return (
     <div data-testid="map-area-card" className={CARD} style={cardPosition(x, y, width, height)}>
       <div className="break-all font-mono text-xs font-medium leading-snug text-[var(--color-text-primary)]">
-        {slot ? `Files directly in ${name || area.path}` : name}
+        {slot ? labels.directFiles(name || area.path) : name}
       </div>
       <div className="mt-0.5 text-[10px] leading-tight text-[var(--color-text-tertiary)] tabular-nums">
-        {files.toLocaleString()} {files === 1 ? "file" : "files"}
+        {labels.fileCount(files)}
         {!slot && figure ? ` · ${lensLabel.toLowerCase()} ${figure}` : ""}
-        {!slot ? " · click to open" : ""}
+        {!slot ? ` · ${labels.openHint}` : ""}
       </div>
       {lensCoversFiles && !slot ? (
         <div className="mt-0.5 text-[10px] leading-tight text-[var(--color-text-tertiary)] tabular-nums">
-          {analysedLine(analysed)}
+          {analysedLine(analysed, labels)}
         </div>
       ) : null}
     </div>

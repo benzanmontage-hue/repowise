@@ -25,6 +25,7 @@ import {
   type MapLens,
 } from "./lens";
 import type { CodeHealthMapFile, CodeHealthOverlay } from "./types";
+import { DEFAULT_MAP_CANVAS_LABELS, type MapCanvasLabels } from "./canvas-labels";
 
 /** NLOC-weighted mean of a per-file score, over the files that carry one. */
 function weightedMean(
@@ -90,6 +91,35 @@ const isHotspot = (f: CodeHealthMapFile) => f.is_hotspot === true;
 /** Hotspot share at which an area reads as churning. */
 const HOTSPOT_STEPS = [0.1, 0.25, 0.5] as const;
 
+/**
+ * Hotspot files in their health band, every other file grey, so red and
+ * amber appear only where heavy change meets weak health and a healthy
+ * hotspot stays green. `chip` words a folder's figure, for translation.
+ */
+export function hotspotLens(chip: MapCanvasLabels["hotspotChip"]): FileLens {
+  return {
+    id: "hotspot",
+    label: "Hotspot health",
+    caption:
+      "colour = health of files that change the most · grey = not a hotspot · folder = hotspot count and their health",
+    // Only where heavy change meets weak health does the field turn amber or
+    // red; a healthy hotspot stays green and every other file goes quiet.
+    fill: (f) => (f.is_hotspot ? scoreFill(f.score) : NEUTRAL_FILL),
+    analysed: (f) => f.score != null,
+    areaFromFiles: (files) => scoreFill(weightedMean(files.filter(isHotspot), (f) => f.score)),
+    areaText: (a, files) => {
+      const hot = files?.filter(isHotspot) ?? [];
+      const count = a.hotspotCount ?? hot.length;
+      if (count === 0) return null;
+      const health = weightedMean(hot, (f) => f.score);
+      return chip(count, health == null ? null : formatScore(health));
+    },
+    legend: [...BAND_LEGEND, { fill: NEUTRAL_FILL, label: "Grey = not a hotspot" }],
+    available: ({ files, areas }) =>
+      files.some((f) => f.is_hotspot != null) || [...areas.areas.values()].some((x) => x.hotspotCount !== undefined),
+  };
+}
+
 /** A lens that reads the file rows, so its `fill` is always there. */
 type FileLens = MapLens & { fill: NonNullable<MapLens["fill"]> };
 type AreaLensId = "owner" | "knowledge";
@@ -106,27 +136,7 @@ export const OVERLAY_SPECS: Record<Exclude<CodeHealthOverlay, AreaLensId>, FileL
     areaText: (a) => (a.health == null ? null : formatScore(a.health)),
     legend: [...BAND_LEGEND, { fill: NEUTRAL_FILL, label: HEALTH_UNSUPPORTED_LABEL }],
   },
-  hotspot: {
-    id: "hotspot",
-    label: "Hotspot health",
-    caption:
-      "colour = health of files that change the most · grey = not a hotspot · folder = hotspot count and their health",
-    // Only where heavy change meets weak health does the field turn amber or
-    // red; a healthy hotspot stays green and every other file goes quiet.
-    fill: (f) => (f.is_hotspot ? scoreFill(f.score) : NEUTRAL_FILL),
-    analysed: (f) => f.score != null,
-    areaFromFiles: (files) => scoreFill(weightedMean(files.filter(isHotspot), (f) => f.score)),
-    areaText: (a, files) => {
-      const hot = files?.filter(isHotspot) ?? [];
-      const count = a.hotspotCount ?? hot.length;
-      if (count === 0) return null;
-      const health = weightedMean(hot, (f) => f.score);
-      return health == null ? `${count} hot` : `${count} hot · ${formatScore(health)}`;
-    },
-    legend: [...BAND_LEGEND, { fill: NEUTRAL_FILL, label: "Grey = not a hotspot" }],
-    available: ({ files, areas }) =>
-      files.some((f) => f.is_hotspot != null) || [...areas.areas.values()].some((x) => x.hotspotCount !== undefined),
-  },
+  hotspot: hotspotLens(DEFAULT_MAP_CANVAS_LABELS.hotspotChip),
   maintainability: {
     id: "maintainability",
     label: "Maintainability",
@@ -234,8 +244,13 @@ export const OVERLAY_SPECS: Record<Exclude<CodeHealthOverlay, AreaLensId>, FileL
 export const OVERLAY_ORDER: CodeHealthOverlay[] = ["health", "maintainability", "performance"];
 
 /** A built-in lens, built over the areas on hand when its key depends on them. */
-export function resolveLens(id: CodeHealthOverlay, areas: AreaIndex): MapLens {
+export function resolveLens(
+  id: CodeHealthOverlay,
+  areas: AreaIndex,
+  labels?: Pick<MapCanvasLabels, "hotspotChip">,
+): MapLens {
   if (id === "owner") return ownerLens(areas);
+  if (id === "hotspot" && labels) return hotspotLens(labels.hotspotChip);
   return OVERLAY_SPECS[id] ?? OVERLAY_SPECS.health;
 }
 

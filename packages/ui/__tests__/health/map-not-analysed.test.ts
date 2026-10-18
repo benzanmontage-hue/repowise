@@ -9,7 +9,7 @@ import { layoutAreas, layoutFiles } from "../../src/health/map/area-layout.js";
 import { areaFills, fileFills } from "../../src/health/map/fills.js";
 import { buildScene } from "../../src/health/map/paint.js";
 import { KNOWLEDGE_LENS, ownerLens } from "../../src/health/map/area-lenses.js";
-import { OVERLAY_SPECS } from "../../src/health/map/lens-registry.js";
+import { OVERLAY_SPECS, resolveLens } from "../../src/health/map/lens-registry.js";
 import { CLEAR_NEUTRAL_FILL, NEUTRAL_FILL, QUIET_FILL, type MapLens } from "../../src/health/map/lens.js";
 import { NODE_RAMP_STOP } from "../../src/health/tokens.js";
 import type { CodeHealthMapFile } from "../../src/health/map/types.js";
@@ -117,5 +117,32 @@ describe("hotspot health", () => {
     const { fill, text } = areaFills(deriveAreaIndex(files), OVERLAY_SPECS.hotspot, files);
     expect(fill.get("lib")).toBe(NEUTRAL_FILL);
     expect(text.get("lib")).toBeNull();
+  });
+});
+
+describe("one label per visual disc", () => {
+  it("drops a folder's label when one sub-folder fills it, and names the pair once", async () => {
+    const { mergeDominantLabels } = await import("../../src/health/map/field-notes.js");
+    const files = [
+      ...Array.from({ length: 40 }, (_, i) => f(`pkg/core/src/repowise/core/m${i}.py`, 300, null)),
+      f("pkg/core/alembic/v1.py", 5, null),
+      f("pkg/ui/a.ts", 40, null),
+    ];
+    const index = deriveAreaIndex(files);
+    const labels = mergeDominantLabels(index, layoutAreas(index), new Map(), "Repo");
+    const core = labels.find((l) => l.path === "pkg/core")!;
+    const chain = labels.find((l) => l.path === "pkg/core/src/repowise/core")!;
+    expect(core.dominated).toBe(true);
+    // pkg is filled by pkg/core in turn, so the one label names the whole run.
+    expect(chain.name).toBe("pkg/core/src/repowise/core");
+    expect(labels.find((l) => l.path === "pkg")!.dominated).toBe(true);
+    expect(labels.find((l) => l.path === "pkg/ui")!.dominated).toBe(false);
+  });
+
+  it("words the hotspot chip through the host's labels", () => {
+    const files = [f("lib/a.py", 40, null, { score: 2, is_hotspot: true })];
+    const index = deriveAreaIndex(files);
+    const lens = resolveLens("hotspot", index, { hotspotChip: (n, h) => `${n} 个热点 · ${h}` });
+    expect(areaFills(index, lens, files).text.get("lib")).toBe("1 个热点 · 2.0");
   });
 });

@@ -26,6 +26,8 @@ export interface AreaLabel {
   name: string;
   /** The lens's figure for the area, if any. */
   text: string | null;
+  /** One sub-folder fills this folder: while open, its label speaks for both. */
+  dominated?: boolean;
 }
 
 interface Box {
@@ -92,6 +94,9 @@ export function placeLabels(
     const el = els.get(d.path);
     if (!el || next.has(el)) continue;
     if (el.dataset.state !== d.state) el.dataset.state = d.state;
+    // One label per visual disc: an open folder its one big sub-folder fills
+    // is named by that sub-folder's label instead.
+    if (d.state === "open" && el.dataset.dominated === "true") continue;
     const box = boxFor(d, el, view.w);
     if (!box || box.x + box.w < 0 || box.x > view.w || box.y + box.h < 0 || box.y > view.h) continue;
     if (collides(box, placed)) continue;
@@ -133,6 +138,7 @@ export function AreaLabels({
           title={l.path || l.name}
           onClick={() => onSelect(l.path)}
           data-area={l.path}
+          data-dominated={l.dominated ? "true" : undefined}
           className={`group pointer-events-auto absolute left-0 top-0 flex max-w-[220px] flex-col items-center rounded px-1.5 py-0.5 text-center leading-tight bg-[var(--color-bg-glass)] data-[state=open]:flex-row data-[state=open]:gap-1.5 ${
             cursor === l.path ? "ring-2 ring-[var(--color-accent-primary)]" : ""
           }`}

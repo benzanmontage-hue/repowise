@@ -484,7 +484,15 @@
           "knowledge": "知识风险",
           "dead-code": "死代码",
           "security": "安全"
-        }
+        },
+        "hotspotChip": "{count} 个热点",
+        "hotspotChipScored": "{count} 个热点 · {health}",
+        "fileCount": "{count} 个文件",
+        "openHint": "点击打开",
+        "directFiles": "直接位于 {folder} 的文件",
+        "notLoaded": "文件尚未加载 · 放大以查看",
+        "analysedFiles": "已分析 {loaded} 个文件中的 {analysed} 个",
+        "flaggedFiles": "已分析的 {analysed} 个文件中有 {flagged} 个被标记"
       }
     },
     "knowledgeGraph": {

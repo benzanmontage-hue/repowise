@@ -1,5 +1,7 @@
-/** Every string the area map section and its rail render, so a host can translate it. */
-export interface AreaRailLabels {
+import { DEFAULT_MAP_CANVAS_LABELS, type MapCanvasLabels } from "../map/canvas-labels";
+
+/** Every string the area map section, its canvas and its rail render, so a host can translate it. */
+export interface AreaRailLabels extends MapCanvasLabels {
   mapTitle: string;
   /** Under the title, with the areas API (lazy hierarchy, rail). */
   mapDescription: string;
@@ -52,6 +54,7 @@ export interface AreaRailLabels {
 const s = (n: number, one: string, many: string) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
 export const DEFAULT_AREA_RAIL_LABELS: AreaRailLabels = {
+  ...DEFAULT_MAP_CANVAS_LABELS,
   mapTitle: "Code health map",
   mapDescription:
     "Every folder is a disc sized by lines of code and coloured by the lens. Zoom in and folders open into their sub-folders, then their files. Click a folder to open it, a file to read it in the rail.",
