@@ -40,7 +40,7 @@ import {
   writeFilters,
   type PerformanceFilterState,
 } from "./performance/query";
-import type { RowCallbacks } from "./performance/queue";
+import { QUIET_LINK_CLS, type RowCallbacks } from "./performance/queue";
 import {
   FilteredEmpty,
   GoodState,
@@ -78,9 +78,6 @@ function initialState(initial: string | undefined): PerformanceFilterState {
     ? parseLegacyFilters(initial)
     : readFilters(params);
 }
-
-const LINK_CLS =
-  "rounded text-xs font-medium text-[var(--color-accent-primary)] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-primary)]";
 
 export function PerformanceView({
   adapter,
@@ -316,7 +313,7 @@ export function PerformanceView({
               <button
                 type="button"
                 onClick={() => apply(withFilter(filters, "area", null))}
-                className={LINK_CLS}
+                className={`${QUIET_LINK_CLS} text-xs`}
               >
                 Back to all areas
               </button>

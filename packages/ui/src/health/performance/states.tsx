@@ -6,6 +6,7 @@ import type { PerformanceOpportunitySummary } from "@repowise-dev/types/health";
 import { EmptyState } from "../../shared/empty-state";
 import { Skeleton, SkeletonRegion } from "../../ui/skeleton";
 import type { ExcludedReview } from "./grouping";
+import { QUIET_LINK_CLS } from "./queue";
 
 /**
  * Every state the queue can be in other than "here are the rows". They are
@@ -72,12 +73,9 @@ export function LeftOut({
       {reviews.map((review, index) => (
         <span key={review.reason}>
           {index > 0 ? ", " : ""}
-          <button
-            type="button"
-            onClick={() => onReview(review)}
-            className="rounded text-[var(--color-accent-primary)] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-primary)]"
-          >
-            <span className="tabular-nums">{review.count.toLocaleString()}</span> {review.label}
+          <span className="tabular-nums">{review.count.toLocaleString()}</span>{" "}
+          <button type="button" onClick={() => onReview(review)} className={QUIET_LINK_CLS}>
+            {review.label}
           </button>
         </span>
       ))}

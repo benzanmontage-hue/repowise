@@ -15,10 +15,11 @@ import { ACTIONABILITY_HINT, ACTIONABILITY_LABEL } from "./presentation";
 
 const STATES: PerformanceActionabilityState[] = ["plan_ready", "advisory", "investigate", "expected"];
 
-/** Green where a fix is proven safe, amber where it is not, neutral otherwise. */
+/** One neutral family, darkest where the change is surest; the segment names
+ *  carry the meaning, so no state borrows a health colour. */
 const STATE_COLOR: Record<PerformanceActionabilityState, string> = {
-  plan_ready: "var(--color-success)",
-  advisory: "var(--color-warning)",
+  plan_ready: "var(--color-text-primary)",
+  advisory: "var(--color-text-secondary)",
   investigate: "var(--color-text-tertiary)",
   expected: "var(--color-border-default)",
 };
@@ -53,9 +54,12 @@ export function ActionabilityBar({
         : {}),
     })),
   ];
+  // One segment holding everything says nothing the counts below do not.
+  const split = states.filter((state) => counts[state] > 0).length > 1;
   return (
     <div className="flex min-w-0 flex-col gap-2">
-      <ProportionBar
+      {split ? (
+        <ProportionBar
         label="Causes by actionability"
         legend={false}
         sort={false}
@@ -66,7 +70,8 @@ export function ActionabilityBar({
           value: counts[state],
           color: STATE_COLOR[state],
         }))}
-      />
+        />
+      ) : null}
       <Segmented
         label="Actionability"
         value={value ?? "all"}

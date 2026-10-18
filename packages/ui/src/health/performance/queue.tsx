@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState } from "react";
-import { Copy, MoreHorizontal } from "lucide-react";
+import { Copy, FileCode, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import type { PerformanceOpportunity } from "@repowise-dev/types/health";
 
@@ -102,8 +102,9 @@ function FixLine({ opportunity }: { opportunity: PerformanceOpportunity }) {
   );
 }
 
-const SECONDARY_CLS =
-  "rounded text-xs font-medium text-[var(--color-accent-primary)] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-primary)]";
+/** A quiet link: secondary ink at rest, the accent only on hover and focus. */
+export const QUIET_LINK_CLS =
+  "rounded text-[var(--color-text-secondary)] underline-offset-2 hover:text-[var(--color-accent-primary)] hover:underline focus-visible:text-[var(--color-accent-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-primary)]";
 
 /**
  * Memoized because a page is up to a hundred of these and the surrounding
@@ -159,12 +160,17 @@ const OpportunityRow = memo(function OpportunityRow({
             <span className="tabular-nums">{affectedSummary(opportunity)}</span>
           </p>
           <OpportunityTags opportunity={opportunity} />
-          <RowLinks
-            opportunity={opportunity}
-            planHref={planHref}
-            onInspect={onInspect}
-            onOpenFile={() => adapter.navigate(adapter.fileHref(opportunity.file_path))}
-          />
+          {planHref ? (
+            <p className="mt-2 text-xs">
+              <a
+                href={planHref}
+                onClick={(event) => event.stopPropagation()}
+                className={QUIET_LINK_CLS}
+              >
+                Open plan
+              </a>
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -180,45 +186,15 @@ const OpportunityRow = memo(function OpportunityRow({
             selected ? "" : "sm:opacity-0"
           }`}
         />
-        <RowOverflow opportunity={opportunity} title={title} />
+        <RowOverflow
+          opportunity={opportunity}
+          title={title}
+          onOpenFile={() => adapter.navigate(adapter.fileHref(opportunity.file_path))}
+        />
       </div>
     </li>
   );
 });
-
-/** The secondary verbs: the plan when one exists, else Inspect; and the file. */
-function RowLinks({
-  opportunity,
-  planHref,
-  onInspect,
-  onOpenFile,
-}: {
-  opportunity: PerformanceOpportunity;
-  planHref: string | undefined;
-  onInspect: (opportunity: PerformanceOpportunity) => void;
-  onOpenFile: () => void;
-}) {
-  const stop = (action: () => void) => (event: React.MouseEvent) => {
-    event.stopPropagation();
-    action();
-  };
-  return (
-    <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-      {planHref ? (
-        <a href={planHref} onClick={(event) => event.stopPropagation()} className={SECONDARY_CLS}>
-          Open plan
-        </a>
-      ) : (
-        <button type="button" onClick={stop(() => onInspect(opportunity))} className={SECONDARY_CLS}>
-          Inspect
-        </button>
-      )}
-      <button type="button" onClick={stop(onOpenFile)} className={SECONDARY_CLS}>
-        Open file
-      </button>
-    </p>
-  );
-}
 
 async function copy(text: string, what: string) {
   try {
@@ -229,10 +205,19 @@ async function copy(text: string, what: string) {
   }
 }
 
-/** The ids an agent or a script resolves the cause by. */
-function RowOverflow({ opportunity, title }: { opportunity: PerformanceOpportunity; title: string }) {
+/** The row's other verbs: open the file, and the ids an agent or a script
+ *  resolves the cause by. */
+function RowOverflow({
+  opportunity,
+  title,
+  onOpenFile,
+}: {
+  opportunity: PerformanceOpportunity;
+  title: string;
+  onOpenFile: () => void;
+}) {
   const [open, setOpen] = useState(false);
-  const item = (label: string, onClick: () => void) => (
+  const item = (label: string, Icon: typeof Copy, onClick: () => void) => (
     <button
       type="button"
       onClick={() => {
@@ -241,7 +226,7 @@ function RowOverflow({ opportunity, title }: { opportunity: PerformanceOpportuni
       }}
       className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-elevated)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-primary)]"
     >
-      <Copy className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
       {label}
     </button>
   );
@@ -263,10 +248,11 @@ function RowOverflow({ opportunity, title }: { opportunity: PerformanceOpportuni
         className="w-64 p-1"
         onClick={(event) => event.stopPropagation()}
       >
-        {item("Copy the agent drill-down", () =>
+        {item("Open the file", FileCode, onOpenFile)}
+        {item("Copy the agent drill-down", Copy, () =>
           copy(agentHandoffCall(opportunity.opportunity_id), "Drill-down call"),
         )}
-        {item("Copy the opportunity id", () => copy(opportunity.opportunity_id, "Opportunity id"))}
+        {item("Copy the opportunity id", Copy, () => copy(opportunity.opportunity_id, "Opportunity id"))}
       </PopoverContent>
     </Popover>
   );

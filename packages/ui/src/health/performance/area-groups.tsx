@@ -9,7 +9,7 @@ import { AiPromptButton } from "../ai-prompt-button";
 import type { PerformanceViewAdapter } from "./adapter";
 import type { PerformanceAreaGroup } from "./grouping";
 import { ACTIONABILITY_LABEL } from "./presentation";
-import { OpportunityList, type RowCallbacks } from "./queue";
+import { OpportunityList, QUIET_LINK_CLS, type RowCallbacks } from "./queue";
 
 /**
  * The queue grouped by area: one card per directory, the area with the most
@@ -131,7 +131,7 @@ const AreaCard = memo(function AreaCard({
             <button
               type="button"
               onClick={() => onOpenArea(group.area)}
-              className="mt-2 rounded px-1 text-xs font-medium text-[var(--color-accent-primary)] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-primary)]"
+              className={`${QUIET_LINK_CLS} mt-2 px-1 text-xs`}
             >
               Show all {group.items.length.toLocaleString()} in {label}
             </button>

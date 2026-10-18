@@ -1,5 +1,5 @@
 import { configure, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { RefactoringPlan } from "@repowise-dev/types/refactoring";
 
 import { PerformanceView } from "../../src/health/performance-view";
@@ -15,6 +15,11 @@ import {
 // The drawer and the prompt modal load on first open, which takes longer than
 // the default second when the suite runs beside others.
 configure({ asyncUtilTimeout: 5000 });
+// Load the lazy chunks once up front, so no single test pays the first import.
+beforeAll(async () => {
+  await import("../../src/health/performance/drawer");
+  await import("../../src/health/ai-prompt-modal");
+});
 
 /** The cause rows, not the chips or other list items on the page. */
 const rows = async () =>
@@ -142,15 +147,26 @@ describe("PerformanceView queue", () => {
     expect(within(first!).getByText(/2 call sites across 2 files/)).toBeTruthy();
     expect(within(first!).getByRole("button", { name: "Copy prompt for your agent" })).toBeTruthy();
     expect(within(first!).getByRole("link", { name: "Open plan" })).toBeTruthy();
-    expect(within(first!).getByRole("button", { name: "Open file" })).toBeTruthy();
+    // The file is one verb among the row's others, behind its menu.
+    expect(within(first!).queryByRole("button", { name: "Open file" })).toBeNull();
+    fireEvent.click(within(first!).getByRole("button", { name: /More actions for/ }));
+    expect(await screen.findByRole("button", { name: "Open the file" })).toBeTruthy();
   });
 
-  it("offers Inspect where there is no plan, and says there is no fix yet", async () => {
+  it("offers no plan link where there is no plan, and says there is no fix yet", async () => {
     render(<PerformanceView adapter={adapter()} />);
     const items = await rows();
     const last = items[items.length - 1]!;
-    expect(within(last).getByRole("button", { name: "Inspect" })).toBeTruthy();
+    expect(within(last).queryByRole("link", { name: "Open plan" })).toBeNull();
     expect(within(last).getByText(/No supported fix yet/)).toBeTruthy();
+  });
+
+  it("draws the actionability bar only when more than one state is present", async () => {
+    const one = page({ items: [page().items[1]!], total: 1, next_offset: null });
+    render(<PerformanceView adapter={adapter({ getPerformanceOpportunities: async () => one })} />);
+    await rows();
+    expect(screen.getByRole("radiogroup", { name: "Actionability" })).toBeTruthy();
+    expect(document.querySelector("[title^='Advisory:']")).toBeNull();
   });
 
   it("pages with the server cursor only when the result outgrows one page", async () => {
@@ -231,7 +247,7 @@ describe("PerformanceView states", () => {
     render(<PerformanceView adapter={adapter({ getPerformanceOpportunities: load })} />);
     expect(await screen.findByText(/7 causes analysed across the repository/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: /run rarely/ })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "5 loop size unknown" }));
+    fireEvent.click(screen.getByRole("button", { name: "loop size unknown" }));
     await waitFor(() =>
       expect(load).toHaveBeenLastCalledWith(expect.objectContaining({ proof: "unproven" })),
     );
