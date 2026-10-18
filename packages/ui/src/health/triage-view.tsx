@@ -102,6 +102,7 @@ export function TriageView({
   onAreaChange,
   fileExtras,
   railLabels,
+  primaryLenses,
 }: {
   adapter: CodeHealthAdapter;
   /** Trend fetched once by the host. Consumed by `trendSlot`; accepted here so
@@ -160,6 +161,8 @@ export function TriageView({
   fileExtras?: ReadonlyMap<string, Partial<CodeHealthMapFile>>;
   /** Translations for the map's rail. */
   railLabels?: Partial<AreaRailLabels>;
+  /** Lenses shown as segments; the rest sit behind "More". */
+  primaryLenses?: CodeHealthOverlay[];
 }) {
   const { cacheKey } = adapter;
   const { data: overview, isLoading, error, mutate } = useSWR<HealthOverviewResponse>(
@@ -265,6 +268,7 @@ export function TriageView({
           onAreaChange={onAreaChange}
           fileExtras={fileExtras}
           railLabels={railLabels}
+          primaryLenses={primaryLenses}
         />
       ) : null}
 

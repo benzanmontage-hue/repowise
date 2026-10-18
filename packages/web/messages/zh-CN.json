@@ -471,7 +471,20 @@
         "contributorsLink": "此处的贡献者",
         "backToArea": "返回 {name}",
         "loading": "正在加载区域",
-        "loadError": "无法加载此区域。"
+        "loadError": "无法加载此区域。",
+        "moreLenses": "更多",
+        "lens": {
+          "health": "代码健康",
+          "hotspot": "热点健康",
+          "owner": "主要作者",
+          "maintainability": "可维护性",
+          "performance": "性能",
+          "coverage": "覆盖率",
+          "churn": "变更频率",
+          "knowledge": "知识风险",
+          "dead-code": "死代码",
+          "security": "安全"
+        }
       }
     },
     "knowledgeGraph": {

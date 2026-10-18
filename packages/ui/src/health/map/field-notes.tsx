@@ -23,7 +23,7 @@ import { ROOT_AREA } from "../../lib/areas";
 export function useAreaChrome(
   index: AreaIndex,
   geo: AreaGeometry,
-  lens: MapLens,
+  areaText: ReadonlyMap<string, string | null>,
   selected: string,
   rootLabel: string,
   onSelectArea: (path: string) => void,
@@ -35,9 +35,9 @@ export function useAreaChrome(
         .map((path) => ({
           path,
           name: displayLabel(index, path, rootLabel),
-          text: lens.areaText?.(index.areas.get(path)!) ?? null,
+          text: areaText.get(path) ?? null,
         })),
-    [geo, index, lens, rootLabel],
+    [geo, index, areaText, rootLabel],
   );
   const trail = useMemo(
     () =>
@@ -105,6 +105,7 @@ export function FieldNotes({
 export function FieldHover({
   hover,
   analysed,
+  areaText,
   index,
   lens,
   overlay,
@@ -115,6 +116,7 @@ export function FieldHover({
   hover: Hover | null;
   /** How many of each area's loaded files the active lens analysed. */
   analysed: ReadonlyMap<string, AreaAnalysed>;
+  areaText: ReadonlyMap<string, string | null>;
   index: AreaIndex;
   lens: MapLens;
   overlay: CodeHealthOverlay;
@@ -132,7 +134,7 @@ export function FieldHover({
       area={area}
       name={displayLabel(index, hover.path, rootLabel)}
       slot={hover.slot}
-      figure={lens.areaText?.(area) ?? null}
+      figure={areaText.get(hover.path) ?? null}
       lensLabel={lens.label}
       analysed={analysed.get(hover.path) ?? null}
       lensCoversFiles={Boolean(lens.analysed) && (lens.areaFill?.(area) ?? null) === null}

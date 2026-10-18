@@ -22,7 +22,7 @@ import { OverviewSection } from "../overview/section";
 import { ROOT_AREA } from "../lib/areas";
 import { CodeHealthMap, MapLegend, MapLensSwitcher, type CodeHealthMapFile, type CodeHealthOverlay, type MapScope } from "./code-health-map";
 import { deriveAreaIndex } from "./map/areas";
-import { resolveLens } from "./map/lens-registry";
+import { OVERLAY_SPECS, resolveLens } from "./map/lens-registry";
 import { useAreaSource, type AreaFetchers } from "./map/use-area-source";
 import { MapFieldList } from "./map/inspector";
 import { AreaRail } from "./area-rail/area-rail";
@@ -47,6 +47,8 @@ export interface AreaMapSectionProps {
   overlay: CodeHealthOverlay;
   onOverlayChange?: ((overlay: CodeHealthOverlay) => void) | undefined;
   lenses?: CodeHealthOverlay[] | undefined;
+  /** Lenses shown as segments; the rest sit behind "More". All, when absent. */
+  primaryLenses?: CodeHealthOverlay[] | undefined;
   /** The flat feed, for a host without the areas API. */
   mapFeed?: HealthMapFeed | undefined;
   mapScope?: MapScope | undefined;
@@ -219,6 +221,9 @@ export function AreaMapSection(props: AreaMapSectionProps) {
             overlay={overlay}
             onOverlayChange={props.onOverlayChange}
             {...(props.lenses ? { lenses: props.lenses } : {})}
+            {...(props.primaryLenses ? { primary: props.primaryLenses } : {})}
+            moreLabel={labels.moreLenses}
+            {...(labels.lensName ? { nameOf: (l: CodeHealthOverlay) => labels.lensName!(l) ?? OVERLAY_SPECS[l].label } : {})}
           />
         ) : undefined
       }

@@ -235,6 +235,23 @@ describe("map chrome, off canvas", () => {
     expect(onOverlayChange).toHaveBeenCalledWith("performance");
   });
 
+  it("puts the lenses past the primary ones behind More, and keeps the active one visible", () => {
+    const onOverlayChange = vi.fn();
+    const lenses = ["health", "hotspot", "owner", "performance", "coverage"] as const;
+    const primary = ["health", "hotspot", "owner"] as const;
+    const { getByRole, queryByRole, rerender } = render(
+      <MapLensSwitcher overlay="health" onOverlayChange={onOverlayChange} lenses={[...lenses]} primary={[...primary]} />,
+    );
+    expect(queryByRole("radio", { name: "Performance" })).not.toBeInTheDocument();
+    fireEvent.click(getByRole("button", { name: "More" }));
+    fireEvent.click(getByRole("menuitemradio", { name: "Performance" }));
+    expect(onOverlayChange).toHaveBeenCalledWith("performance");
+    rerender(
+      <MapLensSwitcher overlay="performance" onOverlayChange={onOverlayChange} lenses={[...lenses]} primary={[...primary]} />,
+    );
+    expect(getByRole("radio", { name: "Performance" })).toBeChecked();
+  });
+
   it("MapLegend renders the active lens's bands and caption", () => {
     const { getByText } = render(<MapLegend overlay="performance" />);
     expect(getByText("5 or more")).toBeInTheDocument();

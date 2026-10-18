@@ -9,6 +9,10 @@ export interface AreaRailLabels {
   mapLoadError: string;
   /** The canvas's accessible name and key help, for the active lens. */
   mapAriaLabel: (lens: string) => string;
+  /** The lens switcher's menu of further lenses. */
+  moreLenses: string;
+  /** A lens's name in the switcher; `undefined` keeps the built-in English. */
+  lensName?: ((lens: string) => string | undefined) | undefined;
   /** The rail's one filled action: what the N are. */
   promptAction: (count: number) => string;
   repository: string;
@@ -54,6 +58,7 @@ export const DEFAULT_AREA_RAIL_LABELS: AreaRailLabels = {
   flatMapDescription:
     "Every file as a node, grouped into its folders and sized by lines of code. The lens re-marks the same field rather than redrawing it. Click a folder to zoom, a file to inspect it.",
   searchPlaceholder: "Find a file in the map…",
+  moreLenses: "More",
   mapLoadError: "Couldn't load the map",
   mapAriaLabel: (lens) =>
     `Code health map, ${lens} lens. Arrow keys move between the areas and files inside the selected area, Enter opens one, Backspace goes up a level, Escape returns to the repository, plus and minus zoom.`,

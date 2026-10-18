@@ -92,3 +92,30 @@ describe("performance folds by share over analysed files", () => {
     }
   });
 });
+
+describe("hotspot health", () => {
+  const hot = (path: string, score: number) => f(path, 40, null, { score, is_hotspot: true });
+  const calm = (path: string, score: number) => f(path, 40, null, { score, is_hotspot: false });
+
+  it("greys every file that is not a hotspot and keeps a hotspot's band", () => {
+    const lens = OVERLAY_SPECS.hotspot;
+    expect(lens.fill(calm("a.py", 2))).toBe(NEUTRAL_FILL);
+    expect(lens.fill(hot("b.py", 2))).toBe(OVERLAY_SPECS.health.fill(hot("b.py", 2)));
+    expect(lens.fill(hot("c.py", 9.5))).toBe(OVERLAY_SPECS.health.fill(hot("c.py", 9.5)));
+  });
+
+  it("colours a folder by its hotspots' health and names their count", () => {
+    const files = [hot("lib/a.py", 2), calm("lib/b.py", 9.5), calm("lib/c.py", 9.5)];
+    const index = deriveAreaIndex(files);
+    const { fill, text } = areaFills(index, OVERLAY_SPECS.hotspot, files);
+    expect(fill.get("lib")).toBe(OVERLAY_SPECS.health.fill(hot("x.py", 2)));
+    expect(text.get("lib")).toBe("1 hot · 2.0");
+  });
+
+  it("leaves a folder with no hotspot grey and unlabelled", () => {
+    const files = [calm("lib/b.py", 3)];
+    const { fill, text } = areaFills(deriveAreaIndex(files), OVERLAY_SPECS.hotspot, files);
+    expect(fill.get("lib")).toBe(NEUTRAL_FILL);
+    expect(text.get("lib")).toBeNull();
+  });
+});

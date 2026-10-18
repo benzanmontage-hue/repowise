@@ -24,6 +24,8 @@ export interface AreaAnalysed {
 
 export interface AreaFills {
   fill: Map<string, string>;
+  /** The lens's figure per area, from its rollup and its loaded, analysed files. */
+  text: Map<string, string | null>;
   /** Per area with loaded files, for a lens that tells files apart; else empty. */
   analysed: Map<string, AreaAnalysed>;
 }
@@ -65,17 +67,17 @@ function foldInputs(index: AreaIndex, lens: MapLens, files: readonly CodeHealthM
 
 export function areaFills(index: AreaIndex, lens: MapLens, files: readonly CodeHealthMapFile[]): AreaFills {
   const fill = new Map<string, string>();
-  const needsFold =
-    lens.areaFromFiles !== undefined && [...index.areas.values()].some((a) => (lens.areaFill?.(a) ?? null) === null);
-  const inputs = needsFold || lens.analysed ? foldInputs(index, lens, files) : null;
+  const text = new Map<string, string | null>();
+  const inputs = files.length > 0 ? foldInputs(index, lens, files) : null;
   for (const a of index.areas.values()) {
     const fromRollup = lens.areaFill?.(a) ?? null;
     const analysed = inputs?.analysedFiles.get(a.path);
+    text.set(a.path, lens.areaText?.(a, analysed) ?? null);
     if (fromRollup !== null) fill.set(a.path, fromRollup);
     else if (analysed?.length && lens.areaFromFiles) fill.set(a.path, lens.areaFromFiles(analysed));
     else fill.set(a.path, NEUTRAL_FILL);
   }
-  return { fill, analysed: lens.analysed && inputs ? inputs.counts : new Map() };
+  return { fill, text, analysed: lens.analysed && inputs ? inputs.counts : new Map() };
 }
 
 export function fileFills(scene: FieldScene, lens: MapLens, areaFill: ReadonlyMap<string, string>): string[] {

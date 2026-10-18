@@ -91,8 +91,11 @@ export interface MapLens {
    * grey. Fold by share, not by count, or every big folder reads as worst.
    */
   areaFromFiles?: (files: readonly CodeHealthMapFile[]) => string;
-  /** The short figure printed on an area's disc ("7.4", "62%"). */
-  areaText?: (a: MapArea) => string | null;
+  /**
+   * The short figure printed on an area's disc ("7.4", "62%"). `files` are
+   * the area's loaded files this lens analysed, when any are loaded.
+   */
+  areaText?: (a: MapArea, files?: readonly CodeHealthMapFile[]) => string | null;
   /** Whether the data on hand backs this lens; an unbacked lens is not offered. */
   available?: (ctx: LensContext) => boolean;
 }

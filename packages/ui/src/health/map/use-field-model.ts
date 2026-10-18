@@ -63,6 +63,7 @@ export function useFieldModel(
     minNodeR,
     areaFill,
     areaAnalysed: fold.analysed,
+    areaText: fold.text,
     fills,
     attention,
     unplaced: placed.unplaced,

@@ -270,7 +270,7 @@ export function CodeHealthMap({
     onSelectFile: handleSelectFile,
   });
 
-  const { labels, trail } = useAreaChrome(index, geo, lens, selected, rootLabel, handleSelectArea);
+  const { labels, trail } = useAreaChrome(index, geo, model.areaText, selected, rootLabel, handleSelectArea);
   const offered = useMemo(
     () => lenses.filter((l) => lensAvailable(l, fieldFiles, index)),
     [lenses, fieldFiles, index],
@@ -370,6 +370,7 @@ export function CodeHealthMap({
         <FieldHover
           hover={hover}
           analysed={model.areaAnalysed}
+          areaText={model.areaText}
           index={index}
           lens={lens}
           overlay={overlay}

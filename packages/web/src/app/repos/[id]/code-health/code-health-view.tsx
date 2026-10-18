@@ -92,17 +92,17 @@ const DeadCodeTab = dynamic(
 );
 
 /**
- * Lenses on the map: the three co-equal health signals, coverage, churn (its
- * percentiles are joined in by the map tab), and the two area lenses that read
- * the ownership rollup.
+ * Lenses on the map. Three lead as segments; the rest sit behind "More",
+ * where later lenses (off-boarding, coupling) join. Churn percentiles are
+ * joined in by the map tab; owner and knowledge read the ownership rollup.
  */
+const PRIMARY_LENSES: CodeHealthOverlay[] = ["health", "hotspot", "owner"];
 const OVERLAYS: CodeHealthOverlay[] = [
-  "health",
+  ...PRIMARY_LENSES,
   "maintainability",
   "performance",
   "coverage",
   "churn",
-  "owner",
   "knowledge",
 ];
 
@@ -426,6 +426,7 @@ export function CodeHealthView() {
             overlay={overlay}
             onOverlayChange={setOverlay}
             lenses={OVERLAYS}
+            primaryLenses={PRIMARY_LENSES}
             selectedPath={selectedPath}
             onSelectPath={setSelectedPath}
             highlightPaths={highlightPaths}

@@ -159,6 +159,9 @@ class HealthMapService:
             metrics = [m for m in metrics if in_area(m.file_path, area)]
             rollups = [r for r in rollups if in_area(r.file_path, area)]
         languages = await crud.get_file_language_map(session, repo_id)
+        # The same set ``hotspot_health`` averages over, so the hotspot lens
+        # and that KPI can never disagree about which files are hotspots.
+        hotspots = await crud.get_hotspot_file_paths(session, repo_id)
         summary = await crud.get_performance_summary(session, repo_id)
         perf_languages = supported_perf_languages()
 
@@ -253,7 +256,7 @@ class HealthMapService:
 
         drawn = [by_path[path] for path in chosen]
         files = [
-            self._row(metric, burden.get(metric.file_path), languages, perf_languages)
+            self._row(metric, burden.get(metric.file_path), languages, perf_languages, hotspots)
             for metric in drawn
         ]
 
@@ -334,6 +337,7 @@ class HealthMapService:
         rollup: Any,
         languages: dict[str, str | None],
         perf_languages: Any,
+        hotspots: set[str],
     ) -> dict[str, Any]:
         """One node. The lens reads the rollup; everything else is geometry.
 
@@ -356,6 +360,7 @@ class HealthMapService:
             "performance_opportunities": rollup.opportunities - rollup.expected if rollup else 0,
             "performance_observations": rollup.observations if rollup else 0,
             "code_origin": metric.code_origin,
+            "is_hotspot": metric.file_path in hotspots,
         }
         actionability = _leading_actionability(rollup)
         if actionability is not None:

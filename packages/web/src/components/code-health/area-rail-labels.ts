@@ -13,6 +13,8 @@ export function useAreaRailLabels(): AreaRailLabels {
       mapDescription: t("mapDescription"),
       flatMapDescription: t("flatMapDescription"),
       searchPlaceholder: t("searchPlaceholder"),
+      moreLenses: t("moreLenses"),
+      lensName: (lens) => (t.has(`lens.${lens}`) ? t(`lens.${lens}`) : undefined),
       mapLoadError: t("mapLoadError"),
       mapAriaLabel: (lens) => t("mapAriaLabel", { lens }),
       promptAction: (count) => t("promptAction", { count }),

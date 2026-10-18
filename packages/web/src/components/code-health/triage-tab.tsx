@@ -94,6 +94,7 @@ export function TriageTab({
   overlay = "health",
   onOverlayChange,
   lenses,
+  primaryLenses,
   selectedPath,
   onSelectPath,
   highlightPaths,
@@ -110,6 +111,8 @@ export function TriageTab({
   onOverlayChange?: (overlay: CodeHealthOverlay) => void;
   /** Lenses offered in the switcher. */
   lenses?: CodeHealthOverlay[];
+  /** Lenses shown as segments; the rest sit behind "More". */
+  primaryLenses?: CodeHealthOverlay[];
   /** Selection, URL-synced by the page so a link can open one file. */
   selectedPath?: string | null;
   onSelectPath?: (path: string | null) => void;
@@ -175,6 +178,7 @@ export function TriageTab({
       overlay={overlay}
       onOverlayChange={onOverlayChange}
       lenses={lenses}
+      primaryLenses={primaryLenses}
       overlayLoading={churn.loading}
       selectedPath={selectedPath}
       onSelectPath={onSelectPath}

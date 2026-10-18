@@ -471,7 +471,20 @@
         "contributorsLink": "Contributors here",
         "backToArea": "Back to {name}",
         "loading": "Loading area",
-        "loadError": "Couldn't load this area."
+        "loadError": "Couldn't load this area.",
+        "moreLenses": "More",
+        "lens": {
+          "health": "Code health",
+          "hotspot": "Hotspot health",
+          "owner": "Main author",
+          "maintainability": "Maintainability",
+          "performance": "Performance",
+          "coverage": "Coverage",
+          "churn": "Churn",
+          "knowledge": "Knowledge risk",
+          "dead-code": "Dead code",
+          "security": "Security"
+        }
       }
     },
     "knowledgeGraph": {

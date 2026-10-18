@@ -37,6 +37,8 @@ export interface CodeHealthMapFile {
   /** Whether a performance detector runs on this file's language at all.
    *  `false` means nothing ever looked, which is not the same as clear. */
   performance_analyzed?: boolean | null;
+  /** Git flags the file a hotspot; drives the hotspot health lens. */
+  is_hotspot?: boolean | null;
   /** 0-100 churn percentile, drives the churn lens. */
   churn_percentile?: number | null;
   /** Reclaimable lines, drives the dead-code lens. */
@@ -62,6 +64,8 @@ export type CodeHealthOverlay =
   | "churn"
   | "dead-code"
   | "security"
+  /** Hotspot files in their health band, every other file grey. */
+  | "hotspot"
   /** Area-level: who leads each folder. */
   | "owner"
   /** Area-level: share of a folder only one person has changed. */

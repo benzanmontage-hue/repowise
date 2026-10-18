@@ -85,6 +85,7 @@ const performanceAnalysed = (f: CodeHealthMapFile) => {
 const hasCause = (f: CodeHealthMapFile) => performanceBurden(f).count > 0;
 
 const pct = (v: number) => `${Math.round(v)}%`;
+const isHotspot = (f: CodeHealthMapFile) => f.is_hotspot === true;
 
 /** Hotspot share at which an area reads as churning. */
 const HOTSPOT_STEPS = [0.1, 0.25, 0.5] as const;
@@ -104,6 +105,27 @@ export const OVERLAY_SPECS: Record<Exclude<CodeHealthOverlay, AreaLensId>, FileL
     areaFill: (a) => (a.band ? healthBandMapFill(a.band) : NEUTRAL_FILL),
     areaText: (a) => (a.health == null ? null : formatScore(a.health)),
     legend: [...BAND_LEGEND, { fill: NEUTRAL_FILL, label: HEALTH_UNSUPPORTED_LABEL }],
+  },
+  hotspot: {
+    id: "hotspot",
+    label: "Hotspot health",
+    caption:
+      "colour = health of files that change the most · grey = not a hotspot · folder = hotspot count and their health",
+    // Only where heavy change meets weak health does the field turn amber or
+    // red; a healthy hotspot stays green and every other file goes quiet.
+    fill: (f) => (f.is_hotspot ? scoreFill(f.score) : NEUTRAL_FILL),
+    analysed: (f) => f.score != null,
+    areaFromFiles: (files) => scoreFill(weightedMean(files.filter(isHotspot), (f) => f.score)),
+    areaText: (a, files) => {
+      const hot = files?.filter(isHotspot) ?? [];
+      const count = a.hotspotCount ?? hot.length;
+      if (count === 0) return null;
+      const health = weightedMean(hot, (f) => f.score);
+      return health == null ? `${count} hot` : `${count} hot · ${formatScore(health)}`;
+    },
+    legend: [...BAND_LEGEND, { fill: NEUTRAL_FILL, label: "Grey = not a hotspot" }],
+    available: ({ files, areas }) =>
+      files.some((f) => f.is_hotspot != null) || [...areas.areas.values()].some((x) => x.hotspotCount !== undefined),
   },
   maintainability: {
     id: "maintainability",
