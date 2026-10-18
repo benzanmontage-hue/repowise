@@ -1,5 +1,5 @@
 import * as React from "react";
-import type { OwnerListEntry } from "@repowise-dev/types/owners";
+import type { IdentityKind, OwnerListEntry } from "@repowise-dev/types/owners";
 import { formatRelativeTimeOrNull } from "../lib/format";
 import { OwnerAvatar } from "./owner-avatar";
 
@@ -28,6 +28,9 @@ const COLUMNS: Column[] = [
   { key: "commit_count_90d", label: "Commits 90d", numeric: true },
   { key: null, label: "Last touched", numeric: false },
 ];
+
+/** Automation is named; people, the default, carry no label. */
+const KIND_LABEL: Record<IdentityKind, string> = { human: "Person", bot: "Bot", agent: "Coding agent" };
 
 export interface OwnerTableProps {
   owners: OwnerListEntry[];
@@ -143,6 +146,11 @@ export function OwnerTable({
                       ) : (
                         <span className="block font-medium text-[var(--color-text-primary)] [text-wrap:pretty]">
                           {displayName}
+                        </span>
+                      )}
+                      {o.kind !== "human" && (
+                        <span className="mt-0.5 block font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-tertiary)]">
+                          {KIND_LABEL[o.kind]}
                         </span>
                       )}
                       {o.email && o.email !== o.name && (

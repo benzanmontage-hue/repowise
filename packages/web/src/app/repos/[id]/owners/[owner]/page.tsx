@@ -10,6 +10,7 @@ import { fileEntityPath } from "@repowise-dev/ui/shared/entity";
 import { formatDate, formatRelativeTimeOrNull } from "@repowise-dev/ui/lib/format";
 import { ApiClientError } from "@/lib/api/client";
 import { getOwnerProfile } from "@/lib/api/owners";
+import { WhatDependsOnThem } from "@/components/owners/what-depends-on-them";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("views.contributors");
@@ -82,6 +83,7 @@ export default async function OwnerProfilePage({
       <OwnerProfileView
         owner={profile}
         base={base}
+        dependsOn={<WhatDependsOnThem repoId={id} ownerKey={profile.key} />}
         hrefForFile={(path) => fileEntityPath(base, path)}
         hrefForModule={(mod) => `${base}/modules/${encodeURIComponent(mod)}`}
         hrefForCoAuthor={(c) =>

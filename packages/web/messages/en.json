@@ -481,7 +481,17 @@
       "loadFailed": "The contributor list could not be loaded. Check that the API is reachable and try again.",
       "tenureSince": "Committing here since {date}",
       "tenureLastTouched": "last touched {time}",
-      "unknownName": "unknown"
+      "unknownName": "unknown",
+      "tabsLabel": "Contributor views",
+      "tabs": {
+        "overview": "Overview",
+        "risks": "Knowledge risks",
+        "loss": "Knowledge loss",
+        "offboarding": "Off-boarding"
+      },
+      "offboardingSuggestion": "the truck factor ({names})",
+      "openInOffboarding": "Open in off-boarding",
+      "matrixLoadFailed": "The per-file author shares could not be loaded. Check that the API is reachable and try again."
     },
     "costs": {
       "spendEmptyTitle": "No model calls recorded yet",

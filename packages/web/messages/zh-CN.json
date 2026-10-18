@@ -481,7 +481,17 @@
       "loadFailed": "无法加载贡献者列表。请确认接口可访问后重试。",
       "tenureSince": "自 {date} 起在此提交",
       "tenureLastTouched": "最近提交于 {time}",
-      "unknownName": "未知"
+      "unknownName": "未知",
+      "tabsLabel": "贡献者视图",
+      "tabs": {
+        "overview": "概览",
+        "risks": "知识风险",
+        "loss": "知识流失",
+        "offboarding": "离职模拟"
+      },
+      "offboardingSuggestion": "卡车因子对应的成员（{names}）",
+      "openInOffboarding": "在离职模拟中打开",
+      "matrixLoadFailed": "无法加载每个文件的作者占比。请确认 API 可以访问，然后重试。"
     },
     "costs": {
       "spendEmptyTitle": "尚无模型调用记录",
