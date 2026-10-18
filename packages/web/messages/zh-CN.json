@@ -426,6 +426,10 @@
       "moreFiles": "{count, plural, other {再显示 # 个文件}}",
       "findingWas": "原为 {severity}",
       "findingIndirect": "仅改动了该文件，并非它写下的行",
+      "findingMovedFrom": "从 {from} 移到此处",
+      "findingMoved": "从另一个文件移到此处",
+      "findingCallEdge": "经由它修改的调用到达",
+      "findingUnexplained": "它的差异无法解释",
       "promptActionFile": "复制 {file} 的提示词"
     },
     "architecture": {

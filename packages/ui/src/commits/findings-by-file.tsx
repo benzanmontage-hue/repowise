@@ -3,7 +3,7 @@ import { SeverityMark } from "../health/severity-mark";
 import type { Severity } from "../health/tokens";
 import { disambiguateBasenames } from "../lib/format";
 import type { CommitHealthFinding } from "@repowise-dev/types/git";
-import { DIRECT_ATTRIBUTION, groupFindingsByFile } from "./health-delta";
+import { attributionKind, groupFindingsByFile, movedFromLabel } from "./health-delta";
 
 export interface FileFindings<F> {
   path: string;
@@ -16,6 +16,12 @@ export interface FindingsByFileLabels {
   was: (severity: string) => string;
   /** Said of a finding in a file the change touched but on a line it did not write. */
   indirect: string;
+  /** Said of a finding whose code the change carried here from *from* (`symbol in path`). */
+  moved: (from: string | null) => string;
+  /** Said of a finding reached through a call the change edited. */
+  callEdge: string;
+  /** Said of a finding nothing in the change's diff explains. */
+  unexplained: string;
 }
 
 const DEFAULT_LABELS: FindingsByFileLabels = {
@@ -23,7 +29,25 @@ const DEFAULT_LABELS: FindingsByFileLabels = {
   more: (n) => `Show ${n} more file${n === 1 ? "" : "s"}`,
   was: (s) => `was ${s}`,
   indirect: "file touched, not a line it wrote",
+  moved: (from) => (from ? `moved here from ${from}` : "moved here from another file"),
+  callEdge: "reached through a call it edited",
+  unexplained: "not explained by its diff",
 };
+
+function basisNote(f: CommitHealthFinding, l: FindingsByFileLabels): string | null {
+  switch (attributionKind(f)) {
+    case "direct":
+      return null;
+    case "moved":
+      return l.moved(movedFromLabel(f));
+    case "call_edge":
+      return l.callEdge;
+    case "unexplained":
+      return l.unexplained;
+    default:
+      return l.indirect;
+  }
+}
 
 export interface FindingsByFileProps<F extends CommitHealthFinding> {
   /** Worst first; files keep the order of their worst finding. */
@@ -37,6 +61,7 @@ export interface FindingsByFileProps<F extends CommitHealthFinding> {
 
 function FindingRow({ f, l }: { f: CommitHealthFinding; l: FindingsByFileLabels }) {
   const where = [f.symbol, f.line_start ? `L${f.line_start}` : null].filter(Boolean).join(" · ");
+  const note = basisNote(f, l);
   return (
     <li className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-1.5">
       <SeverityMark severity={f.severity as Severity} className="w-16" />
@@ -45,9 +70,7 @@ function FindingRow({ f, l }: { f: CommitHealthFinding; l: FindingsByFileLabels 
         {f.change_kind === "worsened" && f.severity_before && (
           <span className="text-[var(--color-text-tertiary)]"> ({l.was(f.severity_before)})</span>
         )}
-        {!DIRECT_ATTRIBUTION.has(f.attribution_basis) && (
-          <span className="text-[var(--color-text-tertiary)]"> · {l.indirect}</span>
-        )}
+        {note && <span className="text-[var(--color-text-tertiary)]"> · {note}</span>}
       </span>
       {where && (
         <span className="font-mono text-[11px] text-[var(--color-text-tertiary)] [overflow-wrap:anywhere]">

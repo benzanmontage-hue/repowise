@@ -426,6 +426,10 @@
       "moreFiles": "{count, plural, one {Show # more file} other {Show # more files}}",
       "findingWas": "was {severity}",
       "findingIndirect": "file touched, not a line it wrote",
+      "findingMovedFrom": "moved here from {from}",
+      "findingMoved": "moved here from another file",
+      "findingCallEdge": "reached through a call it edited",
+      "findingUnexplained": "not explained by its diff",
       "promptActionFile": "Copy prompt for {file}"
     },
     "architecture": {

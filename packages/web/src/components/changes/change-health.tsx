@@ -84,6 +84,9 @@ export async function ChangeGotWorse({ health, prompt }: { health: Health; promp
           more: (n) => t("moreFiles", { count: n }),
           was: (severity) => t("findingWas", { severity }),
           indirect: t("findingIndirect"),
+          moved: (from) => (from ? t("findingMovedFrom", { from }) : t("findingMoved")),
+          callEdge: t("findingCallEdge"),
+          unexplained: t("findingUnexplained"),
         }}
         fileAction={(group) => (
           <ChangePromptAction quiet subject={group.path} change={filePromptInput(prompt, group.path)} />

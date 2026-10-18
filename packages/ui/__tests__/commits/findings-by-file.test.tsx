@@ -51,3 +51,23 @@ describe("FindingsByFile", () => {
     expect(screen.getByTitle("src/c.py").closest("details")).toBeNull();
   });
 });
+
+describe("FindingsByFile attribution notes", () => {
+  it("says where a moved finding came from rather than calling it a touched file", () => {
+    render(
+      <FindingsByFile
+        findings={[
+          f("pkg/new.py", "run", 4, {
+            change_kind: "worsened",
+            attribution_basis: "moved",
+            moved_from: { path: "pkg/old.py", symbol: "run" },
+          }),
+          f("pkg/b.py", "walk", 9, { attribution_basis: "changed_call_edge" }),
+        ]}
+      />,
+    );
+    expect(screen.getByText(/moved here from run in pkg\/old\.py/)).toBeTruthy();
+    expect(screen.getByText(/reached through a call it edited/)).toBeTruthy();
+    expect(screen.queryByText(/file touched, not a line it wrote/)).toBeNull();
+  });
+});
