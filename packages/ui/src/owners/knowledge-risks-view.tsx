@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import type { KnowledgeMatrix } from "@repowise-dev/types/owners";
-import { useAiPromptAction } from "../health/ai-prompt-action";
+import { AiPromptButton } from "../health/ai-prompt-button";
+import { AGENT_PROMPT_LABEL, useAiPromptAction } from "../health/ai-prompt-action";
 import { CleanState } from "../shared/clean-state";
 import { buildHandoverPrompt, riskPromptAreas } from "./handover-prompt";
 import { KnowledgeAreaList, KnowledgeAreaRow } from "./knowledge-area-list";
@@ -38,14 +39,16 @@ export function KnowledgeRisksView({ matrix, base, repoName, LinkComponent }: Kn
   const risks = React.useMemo(() => knowledgeRisks(matrix), [matrix]);
   const { openPrompt, promptModal } = useAiPromptAction();
 
+  // One area from its row, or every area (ranked, the prompt lists the first few) from the section.
   const promptFor = React.useCallback(
-    (area: KnowledgeRiskArea) => {
-      const people = Array.from(new Set(area.files.map((f) => f.holder.name)));
-      const promptAreas = riskPromptAreas([area]);
+    (areas: readonly KnowledgeRiskArea[]) => {
+      const people = Array.from(new Set(areas.flatMap((a) => a.files.map((f) => f.holder.name))));
+      const promptAreas = riskPromptAreas(areas);
+      const files = areas.reduce((s, a) => s + a.fileCount, 0);
       openPrompt({
         title: "Spread the knowledge",
-        description: `A plan for a second person to learn ${area.fileCount.toLocaleString()} ${area.fileCount === 1 ? "file" : "files"} one person holds.`,
-        filePath: area.dir || "(repository root)",
+        description: `A plan for a second person to learn ${files.toLocaleString()} ${files === 1 ? "file" : "files"} one person holds.`,
+        filePath: areas.length === 1 ? areas[0]!.dir || "(repository root)" : null,
         getPrompt: (flavor) =>
           buildHandoverPrompt({
             purpose: "spread",
@@ -77,9 +80,10 @@ export function KnowledgeRisksView({ matrix, base, repoName, LinkComponent }: Kn
         </strong>{" "}
         have one author and matter right now: {risks.hotspots.toLocaleString()} are hotspots and{" "}
         {risks.lowHealth.toLocaleString()} are in weak health, across {risks.areas.length.toLocaleString()}{" "}
-        {risks.areas.length === 1 ? "directory" : "directories"}. Hand a directory to your agent for a plan
-        to get a second person reading it.
+        {risks.areas.length === 1 ? "directory" : "directories"}. Hand them to your agent for a plan to get
+        a second person reading each one.
       </p>
+      <AiPromptButton className="self-start" onClick={() => promptFor(risks.areas)} label={AGENT_PROMPT_LABEL} />
       <KnowledgeAreaList
         label="Directories with knowledge held by one person"
         areas={risks.areas}
@@ -89,7 +93,7 @@ export function KnowledgeRisksView({ matrix, base, repoName, LinkComponent }: Kn
             dir={area.dir}
             summary={areaSummary(area)}
             files={area.files.map((f) => ({ ...f, note: `${f.holder.name} ${pct(f.holder.share)}` }))}
-            onPrompt={() => promptFor(area)}
+            onPrompt={() => promptFor([area])}
             base={base}
             LinkComponent={LinkComponent}
           />

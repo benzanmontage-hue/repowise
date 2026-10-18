@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import useSWRInfinite from "swr/infinite";
 import {
@@ -13,6 +13,7 @@ import { ApiError } from "@repowise-dev/ui/shared/api-error";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { listOwnersPage } from "@/lib/api/owners";
 import type { OwnerListEntry, Paginated } from "@/lib/api/types";
+import { directoryFiltersFromParams, writeDirectoryFilters } from "./use-contributors-url";
 
 const LIMIT = 30;
 
@@ -21,12 +22,18 @@ export function AllContributors({ repoId, automationCount }: { repoId: string; a
   const t = useTranslations("views.contributors");
   const tCommon = useTranslations("common");
   const router = useRouter();
-  const [filters, setFilters] = useState<OwnerDirectoryFilters>({
-    q: "",
-    sort: "files_owned",
-    includeAutomation: false,
-  });
+  const searchParams = useSearchParams();
+  const [filters, setFilters] = useState<OwnerDirectoryFilters>(() =>
+    directoryFiltersFromParams(searchParams),
+  );
   const debouncedQ = useDebounce(filters.q, 250);
+  // The table's search, sort and toggle live in the URL, so a filtered view is a link.
+  useEffect(() => {
+    const next = writeDirectoryFilters(searchParams, { ...filters, q: debouncedQ });
+    if (next !== searchParams.toString()) router.replace(next ? `?${next}` : "?", { scroll: false });
+    // Only the debounced filters drive a write; reading searchParams must not loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedQ, filters.sort, filters.includeAutomation]);
   const key = useMemo(
     () => JSON.stringify({ q: debouncedQ, sort: filters.sort, all: filters.includeAutomation }),
     [debouncedQ, filters.sort, filters.includeAutomation],

@@ -67,7 +67,9 @@ export function OwnerDirectory({
       title="All contributors"
       description="A dot marks sole-owned files held by someone who has stopped committing, so a clean column means nothing to chase."
       collapsible
-      defaultOpen={false}
+      // Collapsed by default: the table is disclosure. A link that carries a
+      // search or the automation toggle opens on the result it asked for.
+      defaultOpen={filters.q !== "" || filters.includeAutomation}
       hint={
         <span className="font-mono uppercase tracking-[0.12em]">
           {total.toLocaleString()} {noun}

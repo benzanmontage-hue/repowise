@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import { formatScore } from "@repowise-dev/types/health";
-import { AiPromptButton } from "../health/ai-prompt-button";
-import { AGENT_PROMPT_LABEL, bulkAgentPromptLabel } from "../health/ai-prompt-action";
+import { bulkAgentPromptLabel } from "../health/ai-prompt-action";
+import { RowPromptAction } from "../health/row-prompt-action";
 import { scoreTextColor } from "../health/tokens";
 import { fileEntityPath } from "../shared/entity";
 import { PathText } from "../shared/path-text";
@@ -37,11 +37,6 @@ export interface KnowledgeAreaRowProps {
   defaultOpen?: boolean;
 }
 
-/** A group's prompt label: the bulk form, or the plain one for a group of one. */
-export function groupPromptLabel(count: number): string {
-  return count === 1 ? AGENT_PROMPT_LABEL : bulkAgentPromptLabel(count);
-}
-
 /** Files listed before "Show all N". */
 const FILE_LIMIT = 12;
 
@@ -71,7 +66,7 @@ export function KnowledgeAreaRow({
   const panelId = React.useId();
 
   return (
-    <li className="border-b border-[var(--color-border-default)] py-3">
+    <li className="group/row border-b border-[var(--color-border-default)] py-3">
       <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
         <button
           type="button"
@@ -100,7 +95,11 @@ export function KnowledgeAreaRow({
             )}
           </span>
         </button>
-        <AiPromptButton onClick={onPrompt} label={groupPromptLabel(files.length)} />
+        <RowPromptAction
+          onClick={onPrompt}
+          label={bulkAgentPromptLabel(files.length)}
+          subject={dir || "repository root"}
+        />
       </div>
 
       {open && <AreaFiles id={panelId} dir={dir} files={files} base={base} LinkComponent={LinkComponent} />}

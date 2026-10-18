@@ -9,12 +9,43 @@ import {
   parseThresholdParam,
 } from "@repowise-dev/ui/owners/offboarding";
 import type { OffboardingScenario } from "@repowise-dev/ui/owners/offboarding-view";
+import type { OwnerDirectoryFilters, OwnerSortKey } from "@repowise-dev/ui/owners/owner-directory";
+
+const SORT_KEYS: readonly OwnerSortKey[] = [
+  "files_owned",
+  "hotspots_owned",
+  "commit_count_90d",
+  "dead_code_lines_owned",
+  "bus_factor_risk_files",
+];
+const DEFAULT_SORT: OwnerSortKey = "files_owned";
+
+/** The All contributors table's filters from `?q=&sort=&automation=1`. */
+export function directoryFiltersFromParams(sp: URLSearchParams): OwnerDirectoryFilters {
+  const sort = sp.get("sort") as OwnerSortKey | null;
+  return {
+    q: sp.get("q") ?? "",
+    sort: sort && SORT_KEYS.includes(sort) ? sort : DEFAULT_SORT,
+    includeAutomation: sp.get("automation") === "1",
+  };
+}
+
+/** `sp` with the table's filters written in, defaults left out; returns the query string. */
+export function writeDirectoryFilters(sp: URLSearchParams, f: OwnerDirectoryFilters): string {
+  const next = new URLSearchParams(sp.toString());
+  const set = (key: string, value: string | null) => (value ? next.set(key, value) : next.delete(key));
+  set("q", f.q.trim() || null);
+  set("sort", f.sort === DEFAULT_SORT ? null : f.sort);
+  set("automation", f.includeAutomation ? "1" : null);
+  return next.toString();
+}
 
 export const CONTRIBUTOR_TABS = ["overview", "risks", "loss", "offboarding"] as const;
 export type ContributorTab = (typeof CONTRIBUTOR_TABS)[number];
 
-/** Params that belong to the off-boarding tab and must not ride along elsewhere. */
+/** Params that belong to one tab and must not ride along to another. */
 const SCENARIO_PARAMS = ["leave", "threshold"];
+const DIRECTORY_PARAMS = ["q", "sort", "automation"];
 const DEFAULT_THRESHOLD_PARAM = formatThresholdParam(parseThresholdParam(null));
 
 function parseTab(raw: string | null): ContributorTab {
@@ -62,6 +93,7 @@ export function useContributorsUrl() {
         if (next === "overview") sp.delete("tab");
         else sp.set("tab", next);
         if (next !== "offboarding") for (const p of SCENARIO_PARAMS) sp.delete(p);
+        if (next !== "overview") for (const p of DIRECTORY_PARAMS) sp.delete(p);
       }),
     [replaceParams],
   );

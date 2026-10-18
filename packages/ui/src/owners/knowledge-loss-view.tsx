@@ -3,11 +3,11 @@
 import * as React from "react";
 import type { KnowledgeMatrix, OwnersSummary } from "@repowise-dev/types/owners";
 import { AiPromptButton } from "../health/ai-prompt-button";
-import { useAiPromptAction } from "../health/ai-prompt-action";
+import { AGENT_PROMPT_LABEL, bulkAgentPromptLabel, useAiPromptAction } from "../health/ai-prompt-action";
+import { RowPromptAction } from "../health/row-prompt-action";
 import { formatRelativeTimeOrNull } from "../lib/format";
 import { CleanState } from "../shared/clean-state";
-import { groupPromptLabel } from "./knowledge-area-list";
-import { quietOwnerExposure, type QuietOwnerExposure } from "./knowledge-loss";
+import { quietOwnerExposure, quietOwnersTogether, type QuietOwnerExposure } from "./knowledge-loss";
 import { handoverPromptRequest, OffboardingAreas } from "./offboarding-result";
 import { OwnerAvatar } from "./owner-avatar";
 
@@ -25,8 +25,9 @@ export interface KnowledgeLossViewProps {
 
 /**
  * Code that still changes while its main author has gone quiet. Each quiet
- * owner reads as an off-boarding that already happened: what lost its
- * majority author, and who is left to carry it.
+ * owner reads as an off-boarding that already happened, over the files that
+ * changed in the last 90 days: what lost its majority author, and who is left
+ * to carry it. The section's one filled prompt plans all of them together.
  */
 export function KnowledgeLossView({
   matrix,
@@ -39,6 +40,10 @@ export function KnowledgeLossView({
 }: KnowledgeLossViewProps) {
   const rows = React.useMemo(
     () => quietOwnerExposure(matrix, summary.quiet_owners),
+    [matrix, summary.quiet_owners],
+  );
+  const together = React.useMemo(
+    () => quietOwnersTogether(matrix, summary.quiet_owners),
     [matrix, summary.quiet_owners],
   );
   const { openPrompt, promptModal } = useAiPromptAction();
@@ -63,11 +68,25 @@ export function KnowledgeLossView({
         </strong>{" "}
         {summary.quiet_owners_total === 1 ? "has" : "have"} not committed in {summary.activity_window_days} days
         but still {summary.quiet_owners_total === 1 ? "owns" : "own"} files that changed in that time. Each
-        row shows what would lose its majority author without them, and who is best placed to pick it up.
+        row shows which of the files that changed lately would have no majority author without them, and
+        who is best placed to pick each directory up.
         {summary.quiet_owners_total > shown
           ? ` Showing the ${shown.toLocaleString()} with the most changing code.`
           : ""}
       </p>
+      {together.totals.atRiskFiles > 0 ? (
+        <AiPromptButton
+          className="self-start"
+          onClick={() => openPrompt(handoverPromptRequest(together, together.areas, repoName))}
+          label={AGENT_PROMPT_LABEL}
+        />
+      ) : (
+        <CleanState
+          align="start"
+          title="Others already carry the code that is still changing"
+          description={`Every file that changed in the last ${summary.activity_window_days} days keeps a majority of its commits with people who are still here, even without all ${summary.quiet_owners_total.toLocaleString()} quiet owners.`}
+        />
+      )}
       <ul aria-label="Quiet owners of changing code" className="flex flex-col border-t border-[var(--color-border-default)]">
         {rows.map((row) => (
           <QuietOwnerRow
@@ -94,9 +113,10 @@ function quietOwnerSentence({ owner, result: { totals } }: QuietOwnerExposure, l
       ? "The one file they own changed lately. "
       : `${owner.changing_files_owned.toLocaleString()} of the ${owner.files_owned.toLocaleString()} files they own changed lately. `;
   if (totals.atRiskFiles === 0) {
-    return `${lastCommit}${changing}The people who stay hold the majority of every file they worked on.`;
+    return `${lastCommit}${changing}The people who stay hold the majority of every changing file they worked on.`;
   }
-  const files = `${totals.atRiskFiles.toLocaleString()} ${totals.atRiskFiles === 1 ? "file has" : "files have"}`;
+  const one = totals.atRiskFiles === 1;
+  const files = `${totals.atRiskFiles.toLocaleString()} ${one ? "file" : "files"} that changed lately ${one ? "has" : "have"}`;
   const severe =
     totals.severeFiles > 0 ? `, ${totals.severeFiles.toLocaleString()} of them hotspots or in weak health` : "";
   return `${lastCommit}${changing}Without them, ${files} no majority author left${severe}.`;
@@ -125,7 +145,7 @@ function QuietOwnerRow({
   const personHref = hrefForPerson?.(owner.key);
 
   return (
-    <li className="border-b border-[var(--color-border-default)] py-3">
+    <li className="group/row border-b border-[var(--color-border-default)] py-3">
       <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
         <OwnerAvatar name={owner.name} size="md" />
         <div className="min-w-0 flex-1">
@@ -160,7 +180,11 @@ function QuietOwnerRow({
           </div>
         </div>
         {totals.atRiskFiles > 0 && (
-          <AiPromptButton onClick={() => onPrompt(result.areas)} label={groupPromptLabel(totals.atRiskFiles)} />
+          <RowPromptAction
+            onClick={() => onPrompt(result.areas)}
+            label={bulkAgentPromptLabel(totals.atRiskFiles)}
+            subject={owner.name}
+          />
         )}
       </div>
       {open && (
