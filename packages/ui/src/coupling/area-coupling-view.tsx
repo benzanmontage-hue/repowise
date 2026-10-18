@@ -1,13 +1,12 @@
 "use client";
 
 import { useCallback, useMemo, type ReactNode } from "react";
-import { ChevronLeft } from "lucide-react";
 import type { CouplingAreaPair, CouplingAreasResponse } from "@repowise-dev/types/coupling";
-import { AiPromptButton } from "../health/ai-prompt-button";
 import { useAiPromptAction } from "../health/ai-prompt-action";
 import { buildAreaCouplingAiPrompt } from "../health/ai-prompt-builder";
 import { resolveAreaCouplingCopy, type AreaCouplingCopyOverrides } from "./area-copy";
 import { CouplingAreaFiltersBar } from "./area-filters";
+import { AreaPairHeader } from "./area-pair-header";
 import { CouplingAreaPairList } from "./area-pair-list";
 import {
   ALL_FILE_PAIRS,
@@ -32,6 +31,17 @@ export interface CouplingAreaViewProps {
   workspaceHref?: string;
   LinkComponent?: LinkLike;
   copy?: AreaCouplingCopyOverrides;
+}
+
+/** The list row for the open pair, when the list holds it. */
+function openedRow(
+  data: CouplingAreasResponse,
+  selection: AreaPairRef | typeof ALL_FILE_PAIRS | null,
+): CouplingAreaPair | undefined {
+  if (!selection || selection === ALL_FILE_PAIRS) return undefined;
+  return (data.area_pairs ?? []).find(
+    (p) => p.source === selection.source && p.target === selection.target,
+  );
 }
 
 const LINK = "text-xs text-[var(--color-accent-primary)] hover:underline";
@@ -72,12 +82,7 @@ export function CouplingAreaView({
 
   const open = useCallback((pair: AreaPairRef) => onSelectionChange(pair), [onSelectionChange]);
 
-  const opened =
-    selection && selection !== ALL_FILE_PAIRS
-      ? (data.area_pairs ?? []).find(
-          (p) => p.source === selection.source && p.target === selection.target,
-        )
-      : undefined;
+  const opened = openedRow(data, selection);
 
   const footer = (
     <span className="flex flex-wrap items-center gap-4">
@@ -112,33 +117,13 @@ export function CouplingAreaView({
         />
       ) : (
         <div className="space-y-4">
-          <nav aria-label={copy.backToAreas} className="flex flex-wrap items-center gap-2 text-xs">
-            <button
-              type="button"
-              onClick={() => onSelectionChange(null)}
-              className="inline-flex items-center gap-1 text-[var(--color-accent-primary)] hover:underline"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
-              {copy.backToAreas}
-            </button>
-          </nav>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0 space-y-1">
-              <h2 className="break-all font-mono text-[18px] text-[var(--color-text-primary)]">
-                {selection === ALL_FILE_PAIRS
-                  ? copy.allFilePairs
-                  : `${areaLabel(selection.source, copy.rootLabel)} ↔ ${areaLabel(selection.target, copy.rootLabel)}`}
-              </h2>
-              {opened && (
-                <p className="text-xs text-[var(--color-text-secondary)]">
-                  {copy.pairHeadline(opened.unexplained_pairs, opened.pairs)}
-                </p>
-              )}
-            </div>
-            {opened && opened.unexplained_pairs > 0 && (
-              <AiPromptButton label={copy.promptLabel} onClick={() => prompt([opened])} />
-            )}
-          </div>
+          <AreaPairHeader
+            selection={selection}
+            opened={opened}
+            copy={copy}
+            onBack={() => onSelectionChange(null)}
+            onPrompt={prompt}
+          />
           {children}
         </div>
       )}

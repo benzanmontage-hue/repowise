@@ -101,6 +101,21 @@ def _between(placed: PlacedEdge, area: str, partner: str | None) -> bool:
     return False
 
 
+def _kept(
+    e: CouplingEdge, scope: CouplingScope, cutoff: str | None, is_test: Callable[[str], bool]
+) -> bool:
+    """Whether *e* passes every filter that needs no area placement."""
+    if not (in_area(e.source, scope.root) or in_area(e.target, scope.root)):
+        return False
+    if e.support < scope.min_support:
+        return False
+    if scope.unexplained and e.structural != STRUCTURAL_UNEXPLAINED:
+        return False
+    if cutoff is not None and (e.last_co_change or "")[:10] < cutoff:
+        return False
+    return not (scope.exclude_tests and (is_test(e.source) or is_test(e.target)))
+
+
 def place_edges(
     edges: Sequence[CouplingEdge],
     scope: CouplingScope,
@@ -124,23 +139,14 @@ def place_edges(
 
     out: list[PlacedEdge] = []
     for e in edges:
-        if not (in_area(e.source, scope.root) or in_area(e.target, scope.root)):
-            continue
-        if e.support < scope.min_support:
-            continue
-        if scope.unexplained and e.structural != STRUCTURAL_UNEXPLAINED:
-            continue
-        if cutoff is not None and (e.last_co_change or "")[:10] < cutoff:
-            continue
-        if scope.exclude_tests and (is_test(e.source) or is_test(e.target)):
+        if not _kept(e, scope, cutoff, is_test):
             continue
         a, b = area_of(e.source), area_of(e.target)
         if scope.cross_area and a == b:
             continue
         placed = PlacedEdge(replace(e, cross_area=a != b), a, b)
-        if scope.area is not None and not _between(placed, scope.area, scope.partner):
-            continue
-        out.append(placed)
+        if scope.area is None or _between(placed, scope.area, scope.partner):
+            out.append(placed)
     return out
 
 
