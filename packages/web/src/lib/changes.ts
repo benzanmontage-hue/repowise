@@ -4,8 +4,6 @@
  * a function exported from a "use client" file.
  */
 import type { ChangeListItem, ChangeRecord, EvidenceItem } from "@repowise-dev/types/changes";
-import type { CommitHealthFinding } from "@repowise-dev/types/git";
-import type { HealthDeltaCounts } from "@repowise-dev/ui/commits/health-delta";
 import type { ChangePromptInput } from "@repowise-dev/ui/health/ai-prompt-builder";
 
 /** The change's short name: the forge ref when it has one, else a trimmed id. */
@@ -83,18 +81,17 @@ export function evidenceWord(t: ChangesTranslator, key: string, fallback: string
  * checks that passed.
  */
 export interface EvidenceView {
-  health: EvidenceItem | undefined;
   outcomes: EvidenceItem | undefined;
   exceptions: EvidenceItem[];
   passed: EvidenceItem[];
 }
 
+/** Health leads from the change's own rollup, so its checklist row is not repeated. */
 const LED_ELSEWHERE = new Set(["health_delta", "outcomes", "provenance"]);
 
 export function splitEvidence(items: EvidenceItem[]): EvidenceView {
   const rest = items.filter((i) => !LED_ELSEWHERE.has(i.kind));
   return {
-    health: items.find((i) => i.kind === "health_delta"),
     outcomes: items.find((i) => i.kind === "outcomes"),
     exceptions: [
       ...rest.filter((i) => i.status === "attention"),
@@ -104,59 +101,16 @@ export function splitEvidence(items: EvidenceItem[]): EvidenceView {
   };
 }
 
-/** What a change did to code health, as its checklist measured it. */
-export interface ChangeHealth {
-  counts: HealthDeltaCounts;
-  /** Introduced or worsened findings, worst first, in the commit view's shape. */
-  findings: CommitHealthFinding[];
-}
-
-type Row = Record<string, unknown>;
-
-const str = (v: unknown): string | null => (typeof v === "string" && v ? v : null);
-const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
-
-/** One checklist finding row as the commit view's finding; a checklist kept
- *  before rows carried a basis reads it as unknown, never as direct. */
-function findingFromRow(r: Row): CommitHealthFinding {
-  return {
-    change_kind: String(r.change),
-    dimension: String(r.dimension ?? ""),
-    biomarker_type: String(r.biomarker_type ?? ""),
-    severity: String(r.severity ?? "low"),
-    severity_before: str(r.severity_before),
-    path: String(r.path ?? ""),
-    symbol: str(r.symbol),
-    line_start: num(r.line_start),
-    line_end: num(r.line_end),
-    attribution_basis: str(r.attribution_basis) ?? "unknown",
-    reason: String(r.reason ?? ""),
-  };
-}
-
-/** The health item's counts and findings, or null when it was not compared. */
-export function changeHealthFromEvidence(item: EvidenceItem | undefined): ChangeHealth | null {
-  if (!item || item.status === "unknown") return null;
-  const v = (item.value ?? {}) as Row;
-  return {
-    counts: {
-      introduced: num(v.introduced) ?? 0,
-      worsened: num(v.worsened) ?? 0,
-      resolved: num(v.resolved) ?? 0,
-      status: v.complete === false ? "partial" : "available",
-    },
-    findings: (item.details as Row[]).filter((r) => typeof r.change === "string").map(findingFromRow),
-  };
-}
-
-/** What the agent prompt needs from a change: its findings when it made
- *  health worse, else the checklist rows that need a look, worded. */
+/**
+ * What the agent prompt needs from a change: the findings it made worse
+ * (from its health rollup), or with none, the checklist rows needing a look.
+ */
 export function changePromptInput(
   t: ChangesTranslator,
   change: ChangeRecord,
-  health: ChangeHealth | null,
-  exceptions: EvidenceItem[],
+  exceptions: EvidenceItem[] = [],
 ): ChangePromptInput {
+  const health = change.health;
   return {
     label: changeLabel(change),
     title: change.title,
@@ -164,8 +118,8 @@ export function changePromptInput(
     commits: change.commits,
     files: change.files.map((f) => f.path),
     findings: health?.findings ?? [],
-    resolved: health?.counts.resolved ?? 0,
-    complete: health?.counts.status !== "partial",
+    resolved: health?.resolved ?? 0,
+    complete: health?.status !== "partial",
     attention: exceptions.map(
       (i) => `${evidenceWord(t, `evidenceKinds.${i.kind}`, i.label)}: ${evidenceValueText(t, i) || t(`status${i.status === "attention" ? "Attention" : "Unknown"}`)}`,
     ),

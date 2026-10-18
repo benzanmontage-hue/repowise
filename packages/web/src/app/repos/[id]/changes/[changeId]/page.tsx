@@ -9,13 +9,7 @@ import { OverviewSection } from "@repowise-dev/ui/overview";
 import { CommitFilesTable } from "@repowise-dev/ui/commits/commit-files-table";
 import { formatDate } from "@repowise-dev/ui/lib/format";
 import type { ChangeRecord } from "@repowise-dev/types/changes";
-import {
-  categoryLabel,
-  changeHealthFromEvidence,
-  changeLabel,
-  changePromptInput,
-  splitEvidence,
-} from "@/lib/changes";
+import { categoryLabel, changeLabel, changePromptInput, splitEvidence } from "@/lib/changes";
 import { getChange } from "@/lib/api/changes";
 import { ChangeHealthLede, ChangeGotWorse } from "@/components/changes/change-health";
 import { ChangeChecks } from "@/components/changes/change-checks";
@@ -67,9 +61,9 @@ async function MetaLine({ change }: { change: ChangeRecord }) {
 }
 
 /**
- * Everything read from the checklist, streamed: the first read of a change
- * builds it. Health leads with the primary action, then what got better and
- * worse, the checks needing a look, and outcomes.
+ * The evidence checklist and outcomes, streamed: the first read of a change
+ * builds them. When the change made nothing worse, a review of the rows
+ * needing a look is the page's one action.
  */
 async function ChangeEvidence({ repoId, change }: { repoId: string; change: ChangeRecord }) {
   const t = await getTranslations("views.changes");
@@ -82,23 +76,28 @@ async function ChangeEvidence({ repoId, change }: { repoId: string; change: Chan
   } catch {
     evidence = null;
   }
-  const view = splitEvidence(evidence?.items ?? []);
-  const health = changeHealthFromEvidence(view.health);
-  const action = <ChangePromptAction change={changePromptInput(t, change, health, view.exceptions)} />;
-
+  if (!evidence) {
+    return (
+      <OverviewSection title={t("detailEvidence")}>
+        <p className="text-xs text-[var(--color-text-tertiary)]">
+          {t(building ? "evidenceBuilding" : "evidenceUnavailable")}
+        </p>
+      </OverviewSection>
+    );
+  }
+  const view = splitEvidence(evidence.items);
+  const review =
+    !change.health?.findings?.length && view.exceptions.length > 0 ? (
+      <ChangePromptAction change={changePromptInput(t, change, view.exceptions)} />
+    ) : undefined;
   return (
     <>
-      <ChangeHealthLede health={health} action={action} />
-      <ChangeGotWorse health={health} />
-      {evidence ? (
-        <ChangeChecks exceptions={view.exceptions} passed={view.passed} generatedAt={evidence.generated_at} />
-      ) : (
-        <OverviewSection title={t("detailEvidence")}>
-          <p className="text-xs text-[var(--color-text-tertiary)]">
-            {t(building ? "evidenceBuilding" : "evidenceUnavailable")}
-          </p>
-        </OverviewSection>
-      )}
+      <ChangeChecks
+        exceptions={view.exceptions}
+        passed={view.passed}
+        generatedAt={evidence.generated_at}
+        action={review}
+      />
       {view.outcomes && <ChangeOutcomes item={view.outcomes} repoId={repoId} />}
     </>
   );
@@ -121,6 +120,17 @@ export default async function ChangeDetailPage({ params }: Props) {
       <div className="-mt-2">
         <MetaLine change={change} />
       </div>
+
+      {/* Health leads from the change's own rollup, so it paints with the page. */}
+      <ChangeHealthLede
+        health={change.health}
+        action={
+          change.health?.findings?.length ? (
+            <ChangePromptAction change={changePromptInput(t, change)} />
+          ) : undefined
+        }
+      />
+      <ChangeGotWorse health={change.health} />
 
       <Suspense
         fallback={<p className="text-xs text-[var(--color-text-tertiary)]">{t("evidenceLoading")}</p>}
@@ -151,7 +161,7 @@ export default async function ChangeDetailPage({ params }: Props) {
             <li key={sha}>
               <Link
                 href={`/repos/${id}/commits?commit=${sha}`}
-                className="text-[var(--color-text-secondary)] hover:text-[var(--color-accent-primary)] hover:underline"
+                className="rounded-sm text-[var(--color-text-secondary)] hover:text-[var(--color-accent-primary)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-primary)]"
               >
                 {sha}
               </Link>

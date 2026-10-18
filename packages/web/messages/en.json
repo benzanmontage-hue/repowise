@@ -400,11 +400,11 @@
       "verdictNeutral": "Compared clean: nothing introduced, worsened or resolved.",
       "verdictImproved": "{better, plural, one {Resolved # existing finding} other {Resolved # existing findings}} and introduced none.",
       "verdictWorse": "{worse, plural, one {Introduced or worsened # finding} other {Introduced or worsened # findings}}{better, plural, =0 { and resolved none.} one {, and resolved # existing one.} other {, and resolved # existing ones.}}",
-      "verdictPartial": "Part of this change could not be compared, so these counts are a floor.",
-      "verdictUnknown": "Code health was not compared for this change.",
+      "verdictPartial": "{unscanned, plural, =0 {Part of this change could not be compared, so these counts are a floor.} one {# of its commits has not been scanned yet, so these counts are a floor.} other {# of its commits have not been scanned yet, so these counts are a floor.}}",
+      "verdictUnknown": "None of this change's commits has been scanned for code health yet.",
       "gotWorse": "Got worse",
       "gotWorseDescription": "Findings this change introduced or made more severe, worst first.",
-      "gotWorseShown": "Showing {shown} of {total}; the checklist keeps the most severe.",
+      "gotWorseShown": "Showing the {shown} most severe of {total}.",
       "promptAction": "Copy prompt for your agent",
       "promptTitle": "Prompt for this change",
       "promptDescription": "Hands your agent what this change made worse, with files and lines, or what its checklist flagged when nothing got worse.",
@@ -416,7 +416,8 @@
       "metaApprovals": "{count, plural, one {# approval} other {# approvals}}",
       "metaIssues": "issues {issues}",
       "metaProvenance": "AI provenance {label}",
-      "change": "Change"
+      "change": "Change",
+      "promptActionFix": "Copy prompt to fix what this change made worse"
     },
     "architecture": {
       "tabs": {

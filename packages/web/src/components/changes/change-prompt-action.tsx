@@ -16,11 +16,14 @@ import {
 // Follow-up: swap for the shared prompt action component once the perf lane
 // extracts one into packages/ui; the builder call stays the same.
 export function ChangePromptAction({ change }: { change: ChangePromptInput }) {
+  // Fixing what got worse when the change made anything worse; else a review
+  // of what its checklist flagged. The builder picks the same way.
+  const fixing = change.findings.length > 0;
   const [open, setOpen] = useState(false);
   const t = useTranslations("views.changes");
   return (
     <>
-      <AiPromptButton label={t("promptAction")} onClick={() => setOpen(true)} />
+      <AiPromptButton label={t(fixing ? "promptActionFix" : "promptAction")} onClick={() => setOpen(true)} />
       <AiPromptModal
         open={open}
         onOpenChange={setOpen}

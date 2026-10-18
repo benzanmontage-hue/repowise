@@ -400,11 +400,11 @@
       "verdictNeutral": "比较结果干净：没有新增、恶化或解决任何问题。",
       "verdictImproved": "{better, plural, other {解决了 # 个已有问题}}，且未引入新问题。",
       "verdictWorse": "{worse, plural, other {新增或恶化了 # 个问题}}{better, plural, =0 {，未解决任何问题。} other {，并解决了 # 个已有问题。}}",
-      "verdictPartial": "该变更有部分内容无法比较，因此这些数字是下限。",
-      "verdictUnknown": "该变更未进行代码健康度比较。",
+      "verdictPartial": "{unscanned, plural, =0 {该变更有部分内容无法比较，因此这些数字是下限。} other {该变更有 # 个提交尚未扫描，因此这些数字是下限。}}",
+      "verdictUnknown": "该变更的提交尚未进行代码健康度扫描。",
       "gotWorse": "变差的部分",
       "gotWorseDescription": "该变更新增或加重的问题，按严重程度从高到低排列。",
-      "gotWorseShown": "显示 {total} 个中的 {shown} 个；清单只保留最严重的部分。",
+      "gotWorseShown": "显示 {total} 个中最严重的 {shown} 个。",
       "promptAction": "复制给你的智能体的提示词",
       "promptTitle": "该变更的提示词",
       "promptDescription": "把该变更让代码变差的地方（含文件和行号）交给你的智能体；若没有变差，则交给它清单标记的项目。",
@@ -416,7 +416,8 @@
       "metaApprovals": "{count, plural, other {# 个批准}}",
       "metaIssues": "关联议题 {issues}",
       "metaProvenance": "AI 来源 {label}",
-      "change": "变更"
+      "change": "变更",
+      "promptActionFix": "复制提示词，修复该变更让代码变差的地方"
     },
     "architecture": {
       "tabs": {

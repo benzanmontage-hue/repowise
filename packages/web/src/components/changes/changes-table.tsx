@@ -4,17 +4,9 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { ResponsiveTable, type ResponsiveColumn } from "@repowise-dev/ui/shared/responsive-table";
 import { HealthDeltaMark } from "@repowise-dev/ui/commits/health-delta-mark";
-import type { HealthDeltaCounts } from "@repowise-dev/ui/commits/health-delta";
 import { formatLOC, formatRelativeTime } from "@repowise-dev/ui/lib/format";
 import type { ChangeEvidenceSummary, ChangeListItem } from "@/lib/api/changes";
 import { changeLabel } from "@/lib/changes";
-
-/**
- * A list row, plus the per-change health rollup the server adds when it has
- * one. Read structurally until the generated row type carries the field: the
- * Code health column renders only when some row on the page has it.
- */
-export type ChangeRow = ChangeListItem & { health?: HealthDeltaCounts | null };
 
 /**
  * The kept checklist, marked only when it flags something: a dot and a word
@@ -41,8 +33,10 @@ function ChecklistCell({ summary }: { summary: ChangeEvidenceSummary | null | un
  * link and wraps, the id is a quiet mono prefix, and only exceptions carry
  * colour.
  */
-export function ChangesTable({ repoId, rows }: { repoId: string; rows: ChangeRow[] }) {
+export function ChangesTable({ repoId, rows }: { repoId: string; rows: ChangeListItem[] }) {
   const t = useTranslations("views.changes");
+  // A server from before the health rollup sends no field at all; null is
+  // "not scanned" and still gets the column.
   const hasHealth = rows.some((c) => c.health !== undefined);
   const healthLabels = {
     improved: t("healthLabels.improved"),
@@ -53,7 +47,7 @@ export function ChangesTable({ repoId, rows }: { repoId: string; rows: ChangeRow
     partial: t("healthLabels.partial"),
   };
 
-  const columns: ResponsiveColumn<ChangeRow>[] = [
+  const columns: ResponsiveColumn<ChangeListItem>[] = [
     {
       key: "title",
       header: t("change"),
@@ -78,7 +72,7 @@ export function ChangesTable({ repoId, rows }: { repoId: string; rows: ChangeRow
             key: "health",
             header: t("healthCol"),
             headerClassName: "w-32",
-            render: (c: ChangeRow) => <HealthDeltaMark delta={c.health} labels={healthLabels} />,
+            render: (c: ChangeListItem) => <HealthDeltaMark delta={c.health} labels={healthLabels} />,
           },
         ]
       : []),

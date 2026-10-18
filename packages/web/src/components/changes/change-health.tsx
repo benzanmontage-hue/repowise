@@ -9,7 +9,9 @@ import {
   worseCount,
   type HealthDeltaKind,
 } from "@repowise-dev/ui/commits/health-delta";
-import type { ChangeHealth } from "@/lib/changes";
+import type { ChangeHealthResponse } from "@repowise-dev/types/history";
+
+type Health = ChangeHealthResponse | null | undefined;
 
 /** Green only for a real improvement, red only for a regression. */
 const VALUE_COLOR: Partial<Record<HealthDeltaKind, string>> = {
@@ -18,17 +20,12 @@ const VALUE_COLOR: Partial<Record<HealthDeltaKind, string>> = {
 };
 
 /**
- * The change page's lede: what the change did to code health, the sentence
- * that says how much, and the primary action. A change that was not compared
- * says so, never reads as clean.
+ * The change page's lede: what the change's commits did to code health, the
+ * sentence that says how much, and the primary action when there is work to
+ * hand over. A change none of whose commits was scanned says so, never reads
+ * as clean.
  */
-export async function ChangeHealthLede({
-  health,
-  action,
-}: {
-  health: ChangeHealth | null;
-  action: ReactNode;
-}) {
+export async function ChangeHealthLede({ health, action }: { health: Health; action?: ReactNode }) {
   const t = await getTranslations("views.changes");
   if (!health) {
     return (
@@ -37,9 +34,9 @@ export async function ChangeHealthLede({
       </PageLede>
     );
   }
-  const kind = healthDeltaKind(health.counts);
-  const better = betterCount(health.counts);
-  const worse = worseCount(health.counts);
+  const kind = healthDeltaKind(health);
+  const better = betterCount(health);
+  const worse = worseCount(health);
   const sentence =
     kind === "neutral"
       ? t("verdictNeutral")
@@ -54,30 +51,33 @@ export async function ChangeHealthLede({
       action={action}
     >
       <p>{sentence}</p>
-      {health.counts.status === "partial" && <p>{t("verdictPartial")}</p>}
+      {health.status === "partial" && (
+        <p>{t("verdictPartial", { unscanned: health.unscanned_commits })}</p>
+      )}
     </PageLede>
   );
 }
 
 /**
- * "Got worse": the findings the change introduced or made more severe. What
- * got better is the lede's count; resolved findings have no location left to
- * list, and per-file improvements arrive with the history rollup.
+ * "Got worse": the findings the change's commits introduced or made more
+ * severe. What got better is the lede's count; a resolved finding has no
+ * location left to list.
  */
-export async function ChangeGotWorse({ health }: { health: ChangeHealth | null }) {
-  if (!health || health.findings.length === 0) return null;
+export async function ChangeGotWorse({ health }: { health: Health }) {
+  const findings = health?.findings ?? [];
+  if (!health || findings.length === 0) return null;
   const t = await getTranslations("views.changes");
-  const worse = worseCount(health.counts);
+  const worse = worseCount(health);
   return (
     <OverviewSection
       title={t("gotWorse")}
       description={
-        health.findings.length < worse
-          ? `${t("gotWorseDescription")} ${t("gotWorseShown", { shown: health.findings.length, total: worse })}`
+        findings.length < worse
+          ? `${t("gotWorseDescription")} ${t("gotWorseShown", { shown: findings.length, total: worse })}`
           : t("gotWorseDescription")
       }
     >
-      <CommitHealthTable findings={health.findings} noun="change" />
+      <CommitHealthTable findings={findings} noun="change" />
     </OverviewSection>
   );
 }

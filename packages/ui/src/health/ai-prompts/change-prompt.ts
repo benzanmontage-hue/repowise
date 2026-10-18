@@ -22,6 +22,8 @@ export interface ChangePromptFinding {
   line_start?: number | null | undefined;
   line_end?: number | null | undefined;
   reason: string;
+  /** The commit of the change that charged it, when the rollup knows. */
+  sha?: string | null | undefined;
 }
 
 export interface ChangePromptInput {
@@ -59,7 +61,8 @@ function at(f: ChangePromptFinding): string {
 function findingLine(f: ChangePromptFinding): string {
   const was = f.change_kind === "worsened" && f.severity_before ? `, was ${f.severity_before}` : "";
   const sym = f.symbol ? ` in \`${f.symbol}\`` : "";
-  return `**${f.change_kind}** (${f.severity}${was}) \`${at(f)}\`${sym}: ${f.reason}`;
+  const by = f.sha ? ` (commit \`${f.sha.slice(0, 12)}\`)` : "";
+  return `**${f.change_kind}** (${f.severity}${was}) \`${at(f)}\`${sym}${by}: ${f.reason}`;
 }
 
 /** How to read the whole change: its commits, or the head when there is one. */

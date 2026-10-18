@@ -29,12 +29,13 @@ describe("buildChangeAiPrompt", () => {
             line_start: 10,
             line_end: 40,
             reason: "run grew",
+            sha: "c".repeat(40),
           },
         ],
       },
     });
     expect(text).toContain("## What this change made worse");
-    expect(text).toContain("`src/a.py:10-40` in `run`");
+    expect(text).toContain("`src/a.py:10-40` in `run` (commit `cccccccccccc`)");
     expect(text).toContain("was medium");
     expect(text).toContain("resolved 2 existing findings");
     expect(text).toContain("git show aaaaaaaaaaaa; git show bbbbbbbbbbbb");

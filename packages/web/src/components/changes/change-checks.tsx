@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { getTranslations } from "next-intl/server";
 import { OverviewSection } from "@repowise-dev/ui/overview";
 import { formatDate } from "@repowise-dev/ui/lib/format";
@@ -49,17 +50,20 @@ export async function ChangeChecks({
   exceptions,
   passed,
   generatedAt,
+  action,
 }: {
   exceptions: EvidenceItem[];
   passed: EvidenceItem[];
   generatedAt: string;
+  /** The page's primary action when it hands over a review of these rows. */
+  action?: ReactNode;
 }) {
   const t = await getTranslations("views.changes");
   const summary = exceptions.length
     ? t("checksPassed", { count: passed.length })
     : t("checksAllPassed", { count: passed.length });
   return (
-    <OverviewSection title={t("detailEvidence")}>
+    <OverviewSection title={t("detailEvidence")} action={action}>
       {exceptions.length > 0 && (
         <ul className={LIST}>
           {exceptions.map((item) => (
