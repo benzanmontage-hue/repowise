@@ -87,18 +87,24 @@ export interface EvidenceView {
   passed: EvidenceItem[];
 }
 
-/** Health leads from the change's own rollup, so its checklist row is not repeated. */
-const LED_ELSEWHERE = new Set(["health_delta", "outcomes", "provenance"]);
+/**
+ * Health leads from the change's own rollup and provenance sits in the
+ * metadata line, so neither is listed (the server's attention count skips
+ * health too, and provenance is never attention). Outcomes keep their own
+ * section, but one needing attention (a revert) is also listed with the
+ * exceptions, so the list's attention mark always has a row here.
+ */
+const NOT_LISTED = new Set(["health_delta", "provenance"]);
 
 export function splitEvidence(items: EvidenceItem[]): EvidenceView {
-  const rest = items.filter((i) => !LED_ELSEWHERE.has(i.kind));
+  const rest = items.filter((i) => !NOT_LISTED.has(i.kind));
   return {
     outcomes: items.find((i) => i.kind === "outcomes"),
     exceptions: [
       ...rest.filter((i) => i.status === "attention"),
-      ...rest.filter((i) => i.status === "unknown"),
+      ...rest.filter((i) => i.status === "unknown" && i.kind !== "outcomes"),
     ],
-    passed: rest.filter((i) => i.status === "ok"),
+    passed: rest.filter((i) => i.status === "ok" && i.kind !== "outcomes"),
   };
 }
 
@@ -129,7 +135,8 @@ export function changePromptInput(
 
 /** The same prompt narrowed to one file: its findings, and only that file. */
 export function filePromptInput(input: ChangePromptInput, path: string): ChangePromptInput {
-  return { ...input, files: [path], findings: input.findings.filter((f) => f.path === path), attention: [] };
+  // Resolved counts are change-wide; a per-file prompt does not claim them.
+  return { ...input, files: [path], findings: input.findings.filter((f) => f.path === path), resolved: 0, attention: [] };
 }
 
 /** The health mark's words, from the catalog; one place for the list and the lede. */

@@ -57,6 +57,23 @@ export interface HealthDeltaMarkProps {
  * renders quietly: it is the default state, not something to mark. A stale
  * delta (older analyzer) shows its word and a hollow dot only.
  */
+/** The caveat a delta carries, stale before partial; null when it reads as is. */
+function caveat(delta: HealthDeltaCounts, l: HealthDeltaLabels): string | null {
+  if (delta.stale) return l.stale;
+  return delta.status === "partial" ? l.partial : null;
+}
+
+/** The dot: hollow when stale, the kind's colour otherwise, none when neutral. */
+function MarkDot({ kind, stale }: { kind: HealthDeltaKind; stale: boolean }) {
+  if (kind === "neutral") return null;
+  return (
+    <span
+      aria-hidden
+      className={cn("h-1.5 w-1.5 shrink-0 rounded-full", stale ? "border border-current" : DOT[kind])}
+    />
+  );
+}
+
 export function HealthDeltaMark({ delta, labels, figures = true, className }: HealthDeltaMarkProps) {
   const l = { ...DEFAULT_LABELS, ...labels };
   if (!delta) {
@@ -67,10 +84,10 @@ export function HealthDeltaMark({ delta, labels, figures = true, className }: He
     );
   }
   const kind = healthDeltaKind(delta);
-  const partial = delta.status === "partial";
-  const quiet = kind === "neutral";
   // A stale delta keeps its direction but drops its colour and figures.
   const stale = !!delta.stale;
+  const note = caveat(delta, l);
+  const counts = figures && !stale ? signedFigures(betterCount(delta), worseCount(delta)) : "";
   return (
     <span
       className={cn(
@@ -78,23 +95,15 @@ export function HealthDeltaMark({ delta, labels, figures = true, className }: He
         stale ? "text-[var(--color-text-tertiary)]" : TEXT[kind],
         className,
       )}
-      title={stale ? l.stale : partial ? l.partial : undefined}
+      title={note ?? undefined}
     >
-      {!quiet && (
-        <span
-          aria-hidden
-          className={cn("h-1.5 w-1.5 shrink-0 rounded-full", stale ? "border border-current" : DOT[kind])}
-        />
-      )}
-      <span className={quiet ? undefined : "font-medium"}>
+      <MarkDot kind={kind} stale={stale} />
+      <span className={kind === "neutral" ? undefined : "font-medium"}>
         {l[kind]}
-        {partial && <span aria-hidden>*</span>}
+        {delta.status === "partial" && <span aria-hidden>*</span>}
       </span>
-      {figures && !quiet && !stale && (
-        <span className="font-mono tabular-nums">{signedFigures(betterCount(delta), worseCount(delta))}</span>
-      )}
-      {partial && <span className="sr-only">{l.partial}</span>}
-      {stale && <span className="sr-only">{l.stale}</span>}
+      {counts && <span className="font-mono tabular-nums">{counts}</span>}
+      {note && <span className="sr-only">{note}</span>}
     </span>
   );
 }

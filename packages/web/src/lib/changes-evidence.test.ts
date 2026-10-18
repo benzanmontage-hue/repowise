@@ -10,6 +10,12 @@ function ev(kind: string, status: EvidenceItem["status"], over: Partial<Evidence
 }
 
 describe("splitEvidence", () => {
+  it("lists a revert with the exceptions so the list's attention mark has a row", () => {
+    const view = splitEvidence([ev("outcomes", "attention"), ev("owners", "ok")]);
+    expect(view.exceptions.map((i) => i.kind)).toEqual(["outcomes"]);
+    expect(view.outcomes?.kind).toBe("outcomes");
+  });
+
   it("leaves health, outcomes and provenance to their own places and lists exceptions first", () => {
     const view = splitEvidence([
       ev("owners", "ok"),
@@ -77,6 +83,7 @@ describe.each([
     const one = filePromptInput({ ...input, findings: [...input.findings, { ...finding, path: "src/b.py" }] }, "src/a.py");
     expect(one.files).toEqual(["src/a.py"]);
     expect(one.findings.map((f) => f.path)).toEqual(["src/a.py"]);
+    expect(one.resolved).toBe(0);
   });
 
   it("names every health mark state from the catalog", () => {
