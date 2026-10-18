@@ -66,6 +66,7 @@ export {
 } from "./ai-prompts/commit-prompt";
 export {
   buildChangeAiPrompt,
+  changePromptFixes,
   type BuildChangePromptOptions,
   type ChangePromptFinding,
   type ChangePromptInput,

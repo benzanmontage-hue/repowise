@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildChangeAiPrompt, type ChangePromptInput } from "../../src/health/ai-prompt-builder";
+import { buildChangeAiPrompt, changePromptFixes, type ChangePromptInput } from "../../src/health/ai-prompt-builder";
 
 const base: ChangePromptInput = {
   label: "#7",
@@ -57,5 +57,14 @@ describe("buildChangeAiPrompt", () => {
     const text = buildChangeAiPrompt({ change: { ...base, findings: [finding], omitted: 12 } });
     expect(text).toContain("12 more findings this change made worse are not listed below");
     expect(buildChangeAiPrompt({ change: { ...base, findings: [finding] } })).not.toContain("not listed below");
+  });
+
+  it("still asks to fix when every worse finding is past the listed ones", () => {
+    const change = { ...base, findings: [], omitted: 3 };
+    expect(changePromptFixes(change)).toBe(true);
+    const text = buildChangeAiPrompt({ change });
+    expect(text).toContain("3 more findings this change made worse are not listed below");
+    expect(text).toContain("Fix the findings above in place");
+    expect(changePromptFixes(base)).toBe(false);
   });
 });

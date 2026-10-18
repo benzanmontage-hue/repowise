@@ -51,6 +51,14 @@ export interface BuildChangePromptOptions {
   repoName?: string;
 }
 
+/**
+ * Whether the change made anything worse: listed findings, or worse ones past
+ * the capped list. The prompt fixes when so, else reviews the flagged rows.
+ */
+export function changePromptFixes(c: ChangePromptInput): boolean {
+  return c.findings.length > 0 || (c.omitted ?? 0) > 0;
+}
+
 /** Above this many files the list is cut; the agent can read the rest from git. */
 const FILE_CAP = 25;
 
@@ -98,7 +106,7 @@ export function buildChangeAiPrompt({
   flavor = "generic",
   repoName,
 }: BuildChangePromptOptions): string {
-  const fixing = c.findings.length > 0;
+  const fixing = changePromptFixes(c);
   const lead = preamble(flavor, {
     source: fixing
       ? "Repowise compared code health before and after this merged change and charged the findings below to it."
@@ -108,9 +116,10 @@ export function buildChangeAiPrompt({
       "Call `get_context([...])` on the files named below and `get_risk(changed_files=[...])` for blast radius and test gaps before reading by hand.",
   });
 
-  const work = fixing
-    ? ["## What this change made worse", "", bulletList(c.findings.map(findingLine)), ""]
-    : [];
+  const work =
+    c.findings.length > 0
+      ? ["## What this change made worse", "", bulletList(c.findings.map(findingLine)), ""]
+      : [];
   const flagged = c.attention.length > 0 ? ["## Flagged for a look", "", bulletList(c.attention), ""] : [];
 
   const constraints = fixing

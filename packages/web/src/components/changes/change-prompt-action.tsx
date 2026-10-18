@@ -6,6 +6,7 @@ import {
   AiPromptButton,
   AiPromptModal,
   buildChangeAiPrompt,
+  changePromptFixes,
   type ChangePromptInput,
 } from "@repowise-dev/ui/health";
 
@@ -35,7 +36,7 @@ export function ChangePromptAction({
 }) {
   // Fixing what got worse when the change made anything worse; else a review
   // of what its checklist flagged. The builder picks the same way.
-  const fixing = change.findings.length > 0;
+  const fixing = changePromptFixes(change);
   const [open, setOpen] = useState(false);
   const t = useTranslations("views.changes");
   const label = quiet

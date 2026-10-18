@@ -8,6 +8,7 @@ import { PageShell } from "@repowise-dev/ui/shared/page-shell";
 import { OverviewSection } from "@repowise-dev/ui/overview";
 import { CommitFilesTable } from "@repowise-dev/ui/commits/commit-files-table";
 import { formatDate } from "@repowise-dev/ui/lib/format";
+import { changePromptFixes } from "@repowise-dev/ui/health/ai-prompt-builder";
 import type { ChangeRecord } from "@repowise-dev/types/changes";
 import { categoryLabel, changeLabel, changePromptInput, splitEvidence } from "@/lib/changes";
 import { getChange } from "@/lib/api/changes";
@@ -86,9 +87,10 @@ async function ChangeEvidence({ repoId, change }: { repoId: string; change: Chan
     );
   }
   const view = splitEvidence(evidence.items);
+  const input = changePromptInput(t, change, view.exceptions);
   const review =
-    !change.health?.findings?.length && view.exceptions.length > 0 ? (
-      <ChangePromptAction change={changePromptInput(t, change, view.exceptions)} />
+    !changePromptFixes(input) && view.exceptions.length > 0 ? (
+      <ChangePromptAction change={input} />
     ) : undefined;
   return (
     <>
@@ -125,7 +127,7 @@ export default async function ChangeDetailPage({ params }: Props) {
       {/* Health leads from the change's own rollup, so it paints with the page. */}
       <ChangeHealthLede
         health={change.health}
-        action={prompt.findings.length ? <ChangePromptAction change={prompt} /> : undefined}
+        action={changePromptFixes(prompt) ? <ChangePromptAction change={prompt} /> : undefined}
       />
       <ChangeGotWorse health={change.health} prompt={prompt} />
 
