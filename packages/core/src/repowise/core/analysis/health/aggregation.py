@@ -274,6 +274,37 @@ def _scored_raw(findings: list[Any]) -> list[float]:
     return raw
 
 
+def _category_row(
+    category: str, entries: list[tuple[Any, float]], cap: float
+) -> tuple[dict[str, Any], float]:
+    """One breakdown row from ``(finding, raw)`` pairs, and its applied total."""
+    applied_each = [float(field(f, "health_impact", 0.0) or 0.0) for f, _ in entries]
+    raw_sum = sum(r for _, r in entries)
+    applied_sum = sum(applied_each)
+    row = {
+        "category": category,
+        "cap": round(cap, 2),
+        "raw_deduction": round(raw_sum, 3),
+        "applied_deduction": round(applied_sum, 3),
+        # Held at the cap; a curved category sheds weight but never sits at its ceiling.
+        "capped": category == HISTORY_CATEGORY and applied_sum < raw_sum - 1e-6,
+        "finding_count": len(entries),
+        "findings": [
+            {
+                "id": field(f, "id", None),
+                "biomarker_type": field(f, "biomarker_type", None),
+                "severity": field(f, "severity", None),
+                "raw_impact": round(raw, 3),
+                "applied_impact": round(applied, 3),
+                "function_name": field(f, "function_name", None),
+                "reason": field(f, "reason", None),
+            }
+            for (f, raw), applied in zip(entries, applied_each, strict=True)
+        ],
+    }
+    return row, applied_sum
+
+
 def score_breakdown(findings: Sequence[Any]) -> dict[str, Any]:
     """Reconstruct one file's per-category deductions from its open findings.
 
@@ -301,43 +332,17 @@ def score_breakdown(findings: Sequence[Any]) -> dict[str, Any]:
     # The history cap follows the structure half, so report the one it scored under.
     structure, _ = deduction_split(findings)
     for category, static_cap in CATEGORY_CAPS.items():
-        entries = per_category.get(category, [])
-        if not entries:
-            continue
-        raw_each = [raw for _, raw in entries]
-        entries = [f for f, _ in entries]
-        # Only history keeps a hard cap; every other category follows the curve.
-        history = category == HISTORY_CATEGORY
-        cap = history_cap(structure) if history else ceiling(static_cap)
-        if history:
-            raw_each = destacked(raw_each)
-        applied_each = [float(field(f, "health_impact", 0.0) or 0.0) for f in entries]
-        raw_sum = sum(raw_each)
-        applied_sum = sum(applied_each)
-        categories.append(
-            {
-                "category": category,
-                "cap": round(cap, 2),
-                "raw_deduction": round(raw_sum, 3),
-                "applied_deduction": round(applied_sum, 3),
-                # Held at the cap; a curved category sheds weight but never sits at its ceiling.
-                "capped": history and applied_sum < raw_sum - 1e-6,
-                "finding_count": len(entries),
-                "findings": [
-                    {
-                        "id": field(f, "id", None),
-                        "biomarker_type": field(f, "biomarker_type", None),
-                        "severity": field(f, "severity", None),
-                        "raw_impact": round(raw, 3),
-                        "applied_impact": round(applied, 3),
-                        "function_name": field(f, "function_name", None),
-                        "reason": field(f, "reason", None),
-                    }
-                    for f, raw, applied in zip(entries, raw_each, applied_each, strict=True)
-                ],
-            }
-        )
-        total_deduction += applied_sum
+        if entries := per_category.get(category):
+            # Only history keeps a hard cap; every other category follows the curve.
+            if category == HISTORY_CATEGORY:
+                cap = history_cap(structure)
+                raw = destacked([r for _, r in entries])
+                entries = [(f, r) for (f, _), r in zip(entries, raw, strict=True)]
+            else:
+                cap = ceiling(static_cap)
+            row, applied = _category_row(category, entries, cap)
+            categories.append(row)
+            total_deduction += applied
     score = max(SCORE_FLOOR, min(SCORE_MAX, SCORE_MAX - total_deduction))
     return {
         "score": round(score, 2),
