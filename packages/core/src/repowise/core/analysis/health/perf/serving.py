@@ -445,27 +445,19 @@ def serialize(row: Any, link: PlanLink, *, summary: bool = False) -> dict[str, A
         # Why it can wait; the stored rank already orders by loop size.
         "lower_priority": LOW_PRIORITY_LABEL.get(perf_low_priority(row) or ""),
     }
+    payload.update(_decision_fields(row, details))
     if summary:
         return payload
     return {**payload, **_detail_fields(row, details)}
 
 
-def _detail_fields(row: Any, details: dict[str, Any]) -> dict[str, Any]:
-    """What the ``detail`` view adds to the summary payload."""
+def _decision_fields(row: Any, details: dict[str, Any]) -> dict[str, Any]:
+    """What a row needs to be acted on from a list: the fix, its gain and its
+    effort. Small, so the ``summary`` view carries them too."""
     fix_strategy = field(row, "fix_strategy")
+    plan = details.get("plan") or {}
     return {
-        "terminal_sinks": details.get("terminal_sinks", []),
-        "shared_path_suffix": details.get("shared_path_suffix", []),
-        "resource_fingerprints": details.get("resource_fingerprints", []),
-        "reliable_entry_reachability": details.get("reliable_entry_reachability"),
-        "provenance": details.get("provenance"),
-        "facets": details.get("facets", {}),
         "gain_text": gain_text(row, details.get("facets") or {}),
-        "actionability_reason": details.get("actionability_reason"),
-        "prerequisites": details.get("prerequisites", []),
-        "rank_factors": details.get("rank_factors", {}),
-        "siblings": details.get("siblings", []),
-        **plan_brief(details.get("plan")),
         "fix": None
         if fix_strategy is None
         else {
@@ -474,6 +466,32 @@ def _detail_fields(row: Any, details: dict[str, Any]) -> dict[str, Any]:
             "rationale": details.get("fix_rationale") or "",
             **({"api": details["fix_api"]} if details.get("fix_api") else {}),
         },
+        **(
+            {
+                "plan_economics": {
+                    key: plan.get(key) for key in ("effort_bucket", "benefit", "cost", "risk")
+                }
+            }
+            if plan
+            else {}
+        ),
+    }
+
+
+def _detail_fields(row: Any, details: dict[str, Any]) -> dict[str, Any]:
+    """What the ``detail`` view adds to the summary payload."""
+    return {
+        "terminal_sinks": details.get("terminal_sinks", []),
+        "shared_path_suffix": details.get("shared_path_suffix", []),
+        "resource_fingerprints": details.get("resource_fingerprints", []),
+        "reliable_entry_reachability": details.get("reliable_entry_reachability"),
+        "provenance": details.get("provenance"),
+        "facets": details.get("facets", {}),
+        "actionability_reason": details.get("actionability_reason"),
+        "prerequisites": details.get("prerequisites", []),
+        "rank_factors": details.get("rank_factors", {}),
+        "siblings": details.get("siblings", []),
+        **plan_brief(details.get("plan")),
     }
 
 
@@ -490,7 +508,8 @@ def gain_text(row: Any, facets: dict[str, Any]) -> str:
 
 
 def plan_brief(plan: dict[str, Any] | None) -> dict[str, Any]:
-    """The stored plan's validation, steps and economics, or nothing on an older store."""
+    """The stored plan's validation and steps, or nothing on an older store.
+    Its economics ride on every view (``_decision_fields``)."""
     if not plan:
         return {}
     validation = plan.get("validation") or {}
@@ -498,9 +517,6 @@ def plan_brief(plan: dict[str, Any] | None) -> dict[str, Any]:
     return {
         "validation": {key: validation.get(key) for key in keys},
         "plan_steps": plan.get("steps", []),
-        "plan_economics": {
-            key: plan.get(key) for key in ("effort_bucket", "benefit", "cost", "risk")
-        },
     }
 
 

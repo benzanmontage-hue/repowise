@@ -26,6 +26,7 @@ from repowise.core.analysis.health.perf.serving import (
     plan_link,
     rescope_summary,
     row_sort_key,
+    serialize,
     summary_payload,
 )
 from repowise.core.analysis.health.rows import field
@@ -75,6 +76,33 @@ def test_plan_link_states() -> None:
     assert missing.state == "not_persisted" and "Reindex" in missing.reason
     linked = plan_link({"plan_state": "available"}, {"id": 7}, "plan:x")
     assert (linked.state, linked.row_id, linked.public_id) == ("available", "7", "plan:x")
+
+
+def test_summary_view_keeps_what_a_row_is_acted_on_by() -> None:
+    row = {
+        "opportunity_id": "perf1",
+        "biomarker_type": "io_in_loop",
+        "boundary_kind": "db",
+        "fix_strategy": "batch_or_prefetch_io",
+        "fix_safety": "advisory",
+        "details": {
+            "facets": {"amplification": "per_iteration", "loop_magnitude": "grows_with_data"},
+            "fix_rationale": "One sink.",
+            "plan": {"effort_bucket": "S", "benefit": 1.0, "cost": 1.0, "risk": 1.0,
+                     "steps": [{"order": 1}], "validation": {"total": 0}},
+        },
+    }
+    summary = serialize(row, plan_link({"plan_state": "no_safe_plan"}, None), summary=True)
+    assert summary["fix"] == {
+        "strategy": "batch_or_prefetch_io", "safety": "advisory", "rationale": "One sink."
+    }
+    assert summary["gain_text"]
+    assert summary["plan_economics"]["effort_bucket"] == "S"
+    # The heavy plan fields stay on the detail view only.
+    assert "plan_steps" not in summary and "validation" not in summary
+    detail = serialize(row, plan_link({"plan_state": "no_safe_plan"}, None))
+    assert detail["plan_steps"] == [{"order": 1}]
+    assert detail["fix"] == summary["fix"]
 
 
 def test_intervention_file_prefers_the_symbol() -> None:
