@@ -319,7 +319,9 @@ describe("keyboard", () => {
     // navigation, and a canvas with none is not reachable.
     expect(container.querySelectorAll('[tabindex="0"]')).toHaveLength(1);
     const field = getByRole("group", { name: /Code health map/ });
-    fireEvent.focus(field);
+    // The cursor shows once the keys are used: right to ui, left back to core.
+    fireEvent.keyDown(field, { key: "ArrowRight" });
+    fireEvent.keyDown(field, { key: "ArrowLeft" });
     expect(getByTestId("map-field").getAttribute("data-keyboard-cursor")).toBe("core"); // biggest first
     fireEvent.keyDown(field, { key: "Enter" });
     expect(onAreaChange).toHaveBeenCalledWith("core");
@@ -333,7 +335,9 @@ describe("keyboard", () => {
 
   it("announces where the cursor is", () => {
     const { getByRole, container } = render(<CodeHealthMap files={files} area="core" onAreaChange={vi.fn()} />);
-    fireEvent.focus(getByRole("group", { name: /Code health map/ }));
+    const field = getByRole("group", { name: /Code health map/ });
+    fireEvent.keyDown(field, { key: "ArrowRight" });
+    fireEvent.keyDown(field, { key: "ArrowLeft" });
     const live = container.querySelector('[aria-live="polite"]');
     expect(live?.textContent).toContain("core/a.py");
   });

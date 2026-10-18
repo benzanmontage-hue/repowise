@@ -31,6 +31,7 @@ export {
 export interface FieldScene {
   nodes: FileNode[];
   hosts: Host[];
+  hostIndex: ReadonlyMap<string, number>;
   /** Node index -> host index. */
   hostOfNode: Int32Array;
   /** Path -> node index. */
@@ -40,7 +41,7 @@ export interface FieldScene {
 export function buildScene(placed: PlacedFiles): FieldScene {
   const index = new Map<string, number>();
   placed.nodes.forEach((nd, i) => index.set(nd.file.file_path, i));
-  return { nodes: placed.nodes, hosts: placed.hosts, hostOfNode: placed.hostOfNode, index };
+  return { nodes: placed.nodes, hosts: placed.hosts, hostIndex: placed.hostIndex, hostOfNode: placed.hostOfNode, index };
 }
 
 /** One fill within one host: the nodes that share a colour (or a pair, mid-tween). */

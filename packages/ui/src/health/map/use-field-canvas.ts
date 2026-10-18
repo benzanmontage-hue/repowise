@@ -212,6 +212,7 @@ function runFrame(st: LoopState, live: FieldLive, layers: Layers): boolean {
           index: live.index,
           geo: live.geo,
           hosts: live.scene.hosts,
+          hostIndex: live.scene.hostIndex,
           filesCovered: live.filesCovered,
           cam: st.cam,
           view: st.view,
@@ -371,9 +372,10 @@ function useRepaintTriggers(
     invalidate();
   }, [fills, reducedMotion, loop, invalidate]);
 
+  // A finished or failed load changes what the view should ask for next.
   useEffect(() => {
     invalidate();
-  }, [areaFill, geo, invalidate]);
+  }, [areaFill, geo, live.filesCovered, invalidate]);
 
   useEffect(() => {
     invalidate({ top: true });

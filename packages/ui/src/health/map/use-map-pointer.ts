@@ -62,7 +62,13 @@ export function useHover(onHoverFile: ((file: CodeHealthMapFile | null) => void)
   onHoverRef.current = onHoverFile;
   const setHovered = useCallback((next: Hover | null) => {
     const key = next ? (next.kind === "file" ? `f:${next.file.file_path}` : `a:${next.slot}:${next.path}`) : null;
-    if (current.current === key) return;
+    if (current.current === key) {
+      // A big disc is hovered for a long way: let its card follow, coarsely.
+      setHover((prev) =>
+        next && prev && Math.hypot(next.x - prev.x, next.y - prev.y) > 24 ? next : prev,
+      );
+      return;
+    }
     const wasFile = current.current?.startsWith("f:") ?? false;
     current.current = key;
     setHover(next);

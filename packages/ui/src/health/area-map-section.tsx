@@ -107,7 +107,13 @@ export function AreaMapSection(props: AreaMapSectionProps) {
   const fetchers = useFetchers(adapter);
   const rawSource = useAreaSource(fetchers, adapter.cacheKey);
   const joinedFiles = useMemo(
-    () => (fileExtras ? rawSource.files.map((f) => ({ ...f, ...fileExtras.get(f.file_path) })) : rawSource.files),
+    () =>
+      fileExtras
+        ? rawSource.files.map((f) => {
+            const extra = fileExtras.get(f.file_path);
+            return extra ? { ...f, ...extra } : f;
+          })
+        : rawSource.files,
     [rawSource.files, fileExtras],
   );
   const source = fetchers ? { ...rawSource, files: joinedFiles } : undefined;

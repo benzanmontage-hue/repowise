@@ -54,6 +54,8 @@ function useAreaParam() {
   const area = searchParams.get("area") ?? "";
   const setArea = useCallback(
     (next: string) => {
+      // Re-selecting the open area is not a step to go back over.
+      if (next === area) return;
       const sp = new URLSearchParams(searchParams.toString());
       if (next) sp.set("area", next);
       else sp.delete("area");
@@ -62,7 +64,7 @@ function useAreaParam() {
       const qs = sp.toString();
       router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
-    [router, pathname, searchParams],
+    [router, pathname, searchParams, area],
   );
   return [area, setArea] as const;
 }

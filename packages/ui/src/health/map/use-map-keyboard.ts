@@ -63,12 +63,18 @@ export function useMapKeyboard(opts: {
 
   const onKeyDown = useCallback(
     (e: ReactKeyboardEvent) => {
+      // Browser zoom and other chords stay the browser's.
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       const forward = e.key === "ArrowRight" || e.key === "ArrowDown";
       const back = e.key === "ArrowLeft" || e.key === "ArrowUp";
       if (e.key === "+" || e.key === "=") camera.zoomBy(ZOOM_STEP);
       else if (e.key === "-" || e.key === "_") camera.zoomBy(1 / ZOOM_STEP);
       else if (e.key === "0") onSelectArea(ROOT_AREA);
-      else if (forward || back) kb.setPos((i) => cycle(i, kb.items.length, forward));
+      else if (forward || back) {
+        // A pointer-focused field shows the cursor once the keys are used.
+        kb.setFocused(true);
+        kb.setPos((i) => cycle(i, kb.items.length, forward));
+      }
       else if (e.key === "Enter" && kb.item) {
         if (kb.item.kind === "area") onSelectArea(kb.item.path);
         else onSelectFile(kb.item.path);
@@ -86,6 +92,7 @@ export function useMapKeyboard(opts: {
     if (typeof window === "undefined") return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" && e.key !== "Backspace") return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       const node = container.current;
       if (!node || !(e.target instanceof Node) || !node.contains(e.target)) return;
       // A text field inside the map keeps its own Backspace.

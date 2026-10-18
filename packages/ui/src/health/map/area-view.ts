@@ -55,6 +55,8 @@ export interface ViewInput {
   index: AreaIndex;
   geo: AreaGeometry;
   hosts: readonly Host[];
+  /** Host key -> index into `hosts`. */
+  hostIndex: ReadonlyMap<string, number>;
   /** Areas whose complete file list is loaded or on its way (covers descendants). */
   filesCovered: (path: string) => boolean;
   cam: Cam;
@@ -80,7 +82,7 @@ const dense = (screenR: number, files: number, cap = Infinity) =>
 
 export function computeView(input: ViewInput): FieldView {
   const { index, geo, hosts, cam, view } = input;
-  const hostAt = new Map(hosts.map((h, i) => [h.key, i]));
+  const hostAt = input.hostIndex;
   const out: FieldView = {
     discs: [],
     drawnHosts: new Uint8Array(hosts.length),

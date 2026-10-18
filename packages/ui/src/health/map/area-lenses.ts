@@ -55,14 +55,20 @@ export const KNOWLEDGE_LENS: MapLens = {
  */
 const OWNER_FILLS = SERIES.slice(1);
 
-/** The people leading the most files across the drawn areas, most first. */
+/** Levels the owner ranking reads: the first response always carries them. */
+const RANK_DEPTH = 2;
+
+/**
+ * The people leading the most files, most first, ranked over the top levels
+ * only, so a colour does not move to someone else as deeper areas load.
+ */
 export function rankOwners(index: AreaIndex): { key: string; name: string }[] {
   const weight = new Map<string, { name: string; files: number }>();
   for (const a of index.areas.values()) {
     const o = a.primaryOwner;
-    if (!o) continue;
+    if (!o || (a.path ? a.path.split("/").length : 0) > RANK_DEPTH) continue;
     const w = weight.get(o.key) ?? { name: o.name, files: 0 };
-    w.files += a.directFileCount;
+    w.files += a.fileCount;
     weight.set(o.key, w);
   }
   return [...weight.entries()]

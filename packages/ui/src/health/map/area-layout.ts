@@ -49,7 +49,8 @@ function packInto(parent: Circle, items: Item[]): Map<string, Circle> {
   const out = new Map<string, Circle>();
   if (items.length === 0) return out;
   if (items.length === 1) {
-    out.set(items[0]!.key, { x: parent.x, y: parent.y, r: parent.r * FILL });
+    // A lone child is its parent's disc, so unfolding a chain never shrinks it.
+    out.set(items[0]!.key, { ...parent });
     return out;
   }
   items.sort((a, b) => b.r - a.r || (a.key < b.key ? -1 : 1));
@@ -116,6 +117,8 @@ export interface Host {
 export interface PlacedFiles {
   nodes: FileNode[];
   hosts: Host[];
+  /** Host key -> host index. */
+  hostIndex: ReadonlyMap<string, number>;
   /** Node index -> host index. */
   hostOfNode: Int32Array;
   /** Files with nowhere to sit (no rollup covers their directory). */
@@ -170,5 +173,6 @@ export function layoutFiles(
       nodes: Int32Array.from({ length: nodes.length - start }, (_, i) => start + i),
     });
   }
-  return { nodes, hosts, hostOfNode: Int32Array.from(owner), unplaced };
+  const hostIndex = new Map(hosts.map((h, i) => [h.key, i]));
+  return { nodes, hosts, hostIndex, hostOfNode: Int32Array.from(owner), unplaced };
 }

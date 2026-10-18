@@ -189,8 +189,8 @@ export function CodeHealthMap({
   const selected = chainEnd(index, rawArea);
   const reveal = source?.reveal;
   useEffect(() => {
-    if (reveal && rawArea !== ROOT_AREA && !geo.circles.has(rawArea)) reveal(rawArea);
-  }, [reveal, rawArea, geo]);
+    if (reveal && rawArea !== ROOT_AREA && !index.areas.has(rawArea)) reveal(rawArea);
+  }, [reveal, rawArea, index]);
 
   const kb = useKeyboardCursor(index, scene, selected);
   const { hover, setHovered } = useHover(onHoverFile);
@@ -233,12 +233,12 @@ export function CodeHealthMap({
   const handleSelectFile = useCallback((path: string) => {
     // Clicking a node hands focus to the field's keyboard region, so a reader
     // who reached the map with a pointer can carry on with arrow keys.
-    keyboardRef.current?.focus();
+    keyboardRef.current?.focus({ preventScroll: true });
     onSelectRef.current?.(path);
   }, []);
   const handleSelectArea = useCallback(
     (path: string) => {
-      keyboardRef.current?.focus();
+      keyboardRef.current?.focus({ preventScroll: true });
       selectArea(chainEnd(index, path));
     },
     [index, selectArea],
@@ -310,7 +310,7 @@ export function CodeHealthMap({
         data-matches={model.matches.length}
         data-selected={selectedIdx >= 0 ? (selectedPath ?? undefined) : undefined}
         data-keyboard-cursor={cursorItem?.path}
-        className="relative w-full overflow-hidden rounded-xl border border-[var(--color-border-default)] focus-within:ring-2 focus-within:ring-[var(--color-accent-primary)]"
+        className="relative w-full overflow-hidden rounded-xl border border-[var(--color-border-default)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--color-accent-primary)]"
         style={{
           minHeight,
           background: "radial-gradient(ellipse at 50% 42%, var(--color-bg-surface), var(--color-bg-root) 75%)",
@@ -324,7 +324,8 @@ export function CodeHealthMap({
           role="group"
           aria-label={`Code health map, ${lens.label} lens. Arrow keys move between the areas and files inside the selected area, Enter opens one, Backspace goes up a level, Escape returns to the repository, plus and minus zoom.`}
           onKeyDown={onKeyDown}
-          onFocus={() => kb.setFocused(true)}
+          // The cursor ring answers to keys, so it shows only for keyboard focus.
+          onFocus={(e) => kb.setFocused(e.currentTarget.matches(":focus-visible"))}
           onBlur={() => kb.setFocused(false)}
           className="pointer-events-none absolute inset-0 z-10 outline-none"
         />

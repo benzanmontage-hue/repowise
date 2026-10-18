@@ -183,7 +183,7 @@ describe("semantic zoom", () => {
   const placed = layoutFiles(files, index, geo);
   const view = { w: 800, h: 640, dpr: 1 };
   const at = (cam: { cx: number; cy: number; scale: number }) =>
-    computeView({ index, geo, hosts: placed.hosts, filesCovered: () => true, cam, view });
+    computeView({ index, geo, hosts: placed.hosts, hostIndex: placed.hostIndex, filesCovered: () => true, cam, view });
 
   it("zoomed out, draws areas as discs and no file dots", () => {
     const v = at(fitCamera(view.w, view.h));
@@ -215,6 +215,7 @@ describe("semantic zoom", () => {
       index: lazy,
       geo: lgeo,
       hosts: [],
+      hostIndex: new Map(),
       filesCovered: () => false,
       cam: { cx: big.x, cy: big.y, scale: (OPEN_PX * 4) / big.r },
       view,
@@ -283,7 +284,7 @@ describe("cost at size", () => {
       const cam = fitCamera(800, 640);
       const view = { w: 800, h: 640, dpr: 1 };
       for (let k = 0; k < 100; k++) {
-        computeView({ index, geo, hosts: scene.hosts, filesCovered: () => true, cam: { ...cam, scale: cam.scale * (1 + k / 10) }, view });
+        computeView({ index, geo, hosts: scene.hosts, hostIndex: scene.hostIndex, filesCovered: () => true, cam: { ...cam, scale: cam.scale * (1 + k / 10) }, view });
       }
       const t3 = performance.now();
       console.info(
