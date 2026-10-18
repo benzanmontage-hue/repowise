@@ -81,3 +81,27 @@ def test_history_cap_follows_the_saturated_structure():
 def test_maintainability_keeps_its_hard_caps():
     findings = [_r("low_cohesion", Severity.CRITICAL, f"f{i}") for i in range(10)]
     assert score_file(findings)[0]["maintainability"] == 6.0
+
+
+def test_breakdown_reports_function_grouped_raw():
+    """The breakdown's raw figures follow the same per-function grouping."""
+    from repowise.core.analysis.health.aggregation import score_breakdown
+    from repowise.core.analysis.health.scoring import attach_impacts
+
+    results = [_r("complex_method", Severity.MEDIUM, "f"), _r("large_method", Severity.MEDIUM, "f")]
+    findings = attach_impacts(results, score_file(results)[1])
+    size = score_breakdown(findings)["categories"][0]
+    assert size["raw_deduction"] == round(0.7 * 1.25 + 0.25 * 0.7 * 1.21, 3)
+    assert size["capped"] is False
+
+
+def test_a_critical_function_growing_is_worsened():
+    """A critical finding's raw deduction tracks its measure past the threshold."""
+    from repowise.core.analysis.health.aggregation import finding_raw_deduction
+    from repowise.core.analysis.health.scoring import attach_impacts
+
+    def raw(ccn: int) -> float:
+        results = [_r("complex_method", Severity.CRITICAL, "f", ccn=ccn)]
+        return finding_raw_deduction(attach_impacts(results, score_file(results)[1])[0])
+
+    assert raw(40) > raw(30) > raw(25)

@@ -191,7 +191,7 @@ function leadingCause(file: FileHealthPromptInput): string | null {
 
 function categoryLine(c: FileHealthPromptCategory): string {
   const label = CATEGORY_LABEL[c.category as keyof typeof CATEGORY_LABEL] ?? c.category;
-  const cap = c.cap != null ? `, capped at −${c.cap.toFixed(1)}` : "";
+  const cap = c.cap != null ? `, bounded at −${c.cap.toFixed(1)}` : "";
   // A capped category's figure is a floor, not a measurement.
   const note = c.capped ? " — **at its ceiling**, so this understates the category" : "";
   return `${label}: −${c.applied_deduction.toFixed(2)} from ${c.finding_count} finding${pluralS(

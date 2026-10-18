@@ -120,7 +120,7 @@ export function ScoreBreakdown({
                 </span>
                 <span
                   className="cursor-help tabular-nums text-[var(--color-text-tertiary)]"
-                  title="The cap is the most this category is allowed to subtract from the 10-point score, no matter how many findings it has."
+                  title="The cap is the most this category can subtract from the 10-point score. Code categories approach it gradually as findings add up; history stops at it."
                 >
                   −{c.applied_deduction.toFixed(2)}
                   {cap != null ? <> / cap −{cap.toFixed(1)}</> : null}

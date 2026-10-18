@@ -54,7 +54,7 @@ CATEGORY_CAPS: dict[str, float] = {
     # ``test_coverage`` gates, so the additive, monotonic coverage signal is
     # bounded on its own terms and never squeezed by - or squeezes - the
     # has-tests / hotspot gates. Calibrated offline: a per-file deduction of
-    # 4.0 x uncovered_fraction (this cap binding at ≥50% uncovered) recovers
+    # 4.0 x uncovered_fraction (on a hard 2.0 cap) recovered
     # +0.043 corpus AUC [95% CI +0.023, +0.061] on the covered subset,
     # Popt-neutral, and is exactly zero where coverage was never ingested.
     "test_coverage_gradient": 2.0,
@@ -82,7 +82,7 @@ HISTORY_CATEGORY = "organizational"
 # own they measure activity: a simple file that changes often is busy, not
 # broken. History therefore amplifies code risk rather than standing alone: its
 # cap is 1.0 plus one point per point of structure deduction (every other defect
-# category, already capped), up to the category's 3.5. A file with no code-shape
+# category, after its curve), up to the category's 3.5. A file with no code-shape
 # finding keeps at least 9.0. Against a flat 3.5 cap this costs about 0.009
 # defect AUC; it is kept so a refactor can lift a file that history holds down.
 HISTORY_CAP_BASE: float = 1.0
@@ -109,8 +109,7 @@ def destacked(values: Sequence[float]) -> list[float]:
     return [v if i == top else v * HISTORY_STACK_SHARE for i, v in enumerate(values)]
 
 
-# Per-biomarker deduction by severity. The scorer caps the per-category
-# total at the value in ``CATEGORY_CAPS``.
+# Per-biomarker deduction by severity, before weights and category bounds.
 _SEVERITY_DEDUCTION: dict[Severity, float] = {
     Severity.LOW: 0.3,
     Severity.MEDIUM: 0.7,
@@ -230,15 +229,10 @@ _BIOMARKER_CATEGORY: dict[str, str] = {
 # Per-dimension scoring (defect / maintainability / performance)
 # ---------------------------------------------------------------------------
 #
-# The single surfaced health score is, and remains, the DEFECT score: today's
-# exact weights / categories / caps (the tables above), unchanged. Splitting the
-# score into dimensions is purely additive: ``maintainability`` and
+# The surfaced health score is the DEFECT score. ``maintainability`` and
 # ``performance`` are independent, independently-capped signals derived from the
-# SAME biomarker stream, and they NEVER feed back into ``defect``.
-#
-# The load-bearing guarantee (locked by ``tests/unit/health/test_scoring_dimensions``)
-# is that ``score_file(results)["defect"]`` reproduces the pre-split single
-# score byte-for-byte for any input. If that drifts, the split is wrong.
+# same biomarker stream, and they never feed back into ``defect``; the frozen
+# reference in ``tests/unit/health/test_scoring_dimensions`` locks that.
 
 DIMENSIONS: tuple[str, ...] = ("defect", "maintainability", "performance")
 
@@ -762,25 +756,18 @@ def score_file(results: Iterable[BiomarkerResult]) -> tuple[dict[str, float | No
     Returns ``(scores, defect_deductions)`` where:
 
     - ``scores`` maps each dimension in ``DIMENSIONS`` to its score.
-      ``scores["defect"]`` is the historical single score - byte-for-byte
-      identical to the pre-split ``score_file`` (the load-bearing guarantee).
-      ``scores["performance"]`` is now measured (PR3): a file with no perf
-      findings scores 10.0; the perf detectors deduct under a single bounded
-      ``performance`` cap (2.0, a conservative ceiling). It never blends
-      into ``defect``.
+      ``scores["defect"]`` is the surfaced score. ``scores["performance"]``
+      is 10.0 for a file with no perf findings; perf detectors deduct under
+      one ``performance`` cap (2.0) and never blend into ``defect``.
     - ``defect_deductions`` is each finding's contribution to the DEFECT score
-      after category capping, parallel to *results*. It populates
-      ``HealthFindingData.health_impact`` - a defect-pillar quantity - so the
-      surfaced per-finding impact numbers are unchanged.
+      after grouping and category bounds, parallel to *results*. It populates
+      ``HealthFindingData.health_impact``, a defect-pillar quantity.
     """
     results_list = list(results)
 
-    # DEFECT: only biomarkers whose dimensions include ``defect`` deduct. EVERY
-    # historical biomarker does (``dimensions_for`` defaults to ``{"defect"}``),
-    # so this reproduces the pre-split single score byte-for-byte; the new
-    # performance-only detectors are excluded and never move the surfaced score.
-    # ``defect_deductions`` stays parallel to the FULL ``results_list`` (perf
-    # findings get 0.0 defect impact) so ``attach_impacts`` can zip 1:1.
+    # Only biomarkers whose dimensions include ``defect`` deduct here.
+    # ``defect_deductions`` stays parallel to the full ``results_list`` (others
+    # get 0.0) so ``attach_impacts`` can zip 1:1.
     defect_idx = [
         i for i, r in enumerate(results_list) if "defect" in dimensions_for(r.biomarker_type)
     ]
