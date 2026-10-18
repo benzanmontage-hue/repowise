@@ -8,10 +8,8 @@ import type {
   PerformanceFacets,
 } from "@repowise-dev/types/health";
 
-import { useState } from "react";
-import { ChevronRight, X } from "lucide-react";
-
 import { FilterSelect } from "../code-health-controls";
+import { MoreFilters } from "../../shared/more-filters";
 import { ViewTabs } from "../../shared/view-tabs";
 import {
   CONTEXT_ORDER,
@@ -155,7 +153,7 @@ function NarrowingControl({
  * Context and sort stay visible; the rest of the server filters sit behind
  * one disclosure, which states how many are active while it is closed.
  */
-export function MoreFilters({
+export function NarrowingFilters({
   filters,
   facets,
   onChange,
@@ -164,69 +162,12 @@ export function MoreFilters({
   facets: PerformanceFacets;
   onChange: (key: NarrowingKey, value: string | null) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const active = NARROWING.filter(({ key }) => filters[key] !== null).length;
   const controls = NARROWING.filter((spec) => (facets[spec.facet] ?? []).length > 0).map((spec) => (
     <NarrowingControl key={spec.key} spec={spec} filters={filters} facets={facets} onChange={onChange} />
   ));
   if (controls.length === 0) return null;
-  return (
-    <div className="min-w-0">
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-        className="inline-flex items-center gap-1 rounded text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-primary)]"
-      >
-        <ChevronRight
-          aria-hidden="true"
-          className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-90" : ""}`}
-        />
-        More filters
-        {active > 0 ? <span className="tabular-nums text-[var(--color-text-tertiary)]">({active})</span> : null}
-      </button>
-      {open ? <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-3">{controls}</div> : null}
-    </div>
-  );
-}
-
-export interface ActiveChip {
-  key: string;
-  label: string;
-  onRemove: () => void;
-}
-
-/** Every active narrowing, server or view, as a chip that removes it. */
-export function ActiveChips({ chips, onClearAll }: { chips: ActiveChip[]; onClearAll: () => void }) {
-  if (chips.length === 0) return null;
-  return (
-    <ul aria-label="Active filters" className="flex flex-wrap items-center gap-2">
-      {chips.map((chip) => (
-        <li key={chip.key}>
-          <button
-            type="button"
-            onClick={chip.onRemove}
-            aria-label={`Remove filter ${chip.label}`}
-            className="inline-flex items-center gap-1 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-2.5 py-0.5 text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-primary)]"
-          >
-            {chip.label}
-            <X aria-hidden="true" className="h-3 w-3" />
-          </button>
-        </li>
-      ))}
-      {chips.length > 1 ? (
-        <li>
-          <button
-            type="button"
-            onClick={onClearAll}
-            className="rounded text-xs font-medium text-[var(--color-accent-primary)] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-primary)]"
-          >
-            Clear all
-          </button>
-        </li>
-      ) : null}
-    </ul>
-  );
+  return <MoreFilters active={active}>{controls}</MoreFilters>;
 }
 
 /** The chip label for one active narrowing, "Boundary: Database". */

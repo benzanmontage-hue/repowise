@@ -3,20 +3,14 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import type { PerformanceOpportunity } from "@repowise-dev/types/health";
 
+import { ActiveFilterChips, type ActiveFilterChip } from "../shared/more-filters";
 import { PaginationControls } from "../shared/pagination-controls";
 import { useAiPromptAction } from "./ai-prompt-action";
 import { ActionabilityBar } from "./performance/actionability-bar";
 import type { PerformanceViewAdapter } from "./performance/adapter";
 import { AREA_PREVIEW, AreaGroups, areaLabel } from "./performance/area-groups";
 import { useOpportunityDetail, usePrefetchDetail } from "./performance/cache";
-import {
-  ActiveChips,
-  ContextTabs,
-  MoreFilters,
-  narrowingChipLabel,
-  SortControl,
-  type ActiveChip,
-} from "./performance/filters";
+import { ContextTabs, NarrowingFilters, narrowingChipLabel, SortControl } from "./performance/filters";
 import {
   actionabilityCounts,
   areaGroups,
@@ -183,7 +177,7 @@ export function PerformanceView({
   const scope =
     filters.context === "all" ? "all code" : `${contextLabel(filters.context).toLowerCase()} code`;
 
-  const chips: ActiveChip[] = [
+  const chips: ActiveFilterChip[] = [
     ...NARROWING_KEYS.flatMap((key) => {
       const value = filters[key];
       return value
@@ -251,13 +245,13 @@ export function PerformanceView({
           />
         </div>
         {capabilities.serverFacets ? (
-          <MoreFilters
+          <NarrowingFilters
             filters={filters}
             facets={facets}
             onChange={(key, value) => apply(withFilter(filters, key, value as never))}
           />
         ) : null}
-        <ActiveChips chips={chips} onClearAll={() => apply(clearNarrowing(filters))} />
+        <ActiveFilterChips chips={chips} onClearAll={() => apply(clearNarrowing(filters))} />
 
         {items.length > 0 ? (
           <ActionabilityBar
