@@ -11,7 +11,8 @@
 // Aliased: the bare name would shadow the DOM `KeyboardEvent`.
 import { Fragment } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
-import { OVERLAY_ORDER, OVERLAY_SPECS, type LegendRow, type OverlaySpec } from "./lens";
+import type { LegendRow, MapLens } from "./lens";
+import { OVERLAY_ORDER, OVERLAY_SPECS } from "./lens-registry";
 import type { CodeHealthOverlay } from "./types";
 import { ActivityDot } from "../../ui/activity-dot";
 
@@ -47,7 +48,7 @@ function SizeKey({ className }: { className?: string }) {
 }
 
 /** The active lens's key rows, shared by both placements. */
-export function MapLegendRows({ spec, loading }: { spec: OverlaySpec; loading: boolean }) {
+export function MapLegendRows({ spec, loading }: { spec: MapLens; loading: boolean }) {
   if (loading) {
     return (
       <div className="flex items-center gap-1.5 text-[var(--color-text-tertiary)]">
@@ -149,14 +150,17 @@ export function MapLensSwitcher({
  */
 export function MapLegend({
   overlay,
+  lens,
   loading = false,
   className,
 }: {
   overlay: CodeHealthOverlay;
+  /** A resolved or plug-in lens; wins over `overlay`. */
+  lens?: MapLens;
   loading?: boolean;
   className?: string;
 }) {
-  const spec = OVERLAY_SPECS[overlay] ?? OVERLAY_SPECS.health;
+  const spec = lens ?? OVERLAY_SPECS[overlay] ?? OVERLAY_SPECS.health;
   return (
     <div
       className={`flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-[var(--color-text-tertiary)] ${className ?? ""}`}

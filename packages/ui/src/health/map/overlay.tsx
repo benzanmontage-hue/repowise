@@ -8,6 +8,7 @@
  */
 
 import { performanceSentence, scoreText } from "./lens";
+import type { MapArea } from "./areas";
 import type { CodeHealthMapFile, CodeHealthOverlay } from "./types";
 
 /** Match rings drawn at once. Beyond this the field is the answer, not a mark. */
@@ -37,6 +38,56 @@ const CARD_GAP = 16;
  * usually left the node it was asking about. The card flips to the other side
  * of the pointer near an edge so it is never clipped by the container.
  */
+/** Where a card opens beside the pointer, flipped near an edge. */
+function cardPosition(x: number, y: number, width: number, height: number) {
+  const left = x + CARD_GAP + CARD_W > width ? x - CARD_GAP - CARD_W : x + CARD_GAP;
+  const top = y + CARD_GAP + CARD_H > height ? y - CARD_GAP - CARD_H : y + CARD_GAP;
+  return { left: Math.max(0, left), top: Math.max(0, top) };
+}
+
+const CARD =
+  "pointer-events-none absolute z-20 w-max max-w-[300px] rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] px-2.5 py-1.5 shadow-md";
+
+/**
+ * An area under the pointer: its name, the lens's figure, and how big it is.
+ * A slot is the files sitting directly in the area, beside its sub-areas.
+ */
+export function AreaHoverCard({
+  area,
+  name,
+  slot,
+  figure,
+  lensLabel,
+  x,
+  y,
+  width,
+  height,
+}: {
+  area: MapArea;
+  name: string;
+  slot: boolean;
+  figure: string | null;
+  lensLabel: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}) {
+  const files = slot ? area.directFileCount : area.fileCount;
+  return (
+    <div data-testid="map-area-card" className={CARD} style={cardPosition(x, y, width, height)}>
+      <div className="break-all font-mono text-xs font-medium leading-snug text-[var(--color-text-primary)]">
+        {slot ? `Files directly in ${name || area.path}` : name}
+      </div>
+      <div className="mt-0.5 text-[10px] leading-tight text-[var(--color-text-tertiary)] tabular-nums">
+        {files.toLocaleString()} {files === 1 ? "file" : "files"}
+        {!slot && figure ? ` · ${lensLabel.toLowerCase()} ${figure}` : ""}
+        {!slot ? " · click to open" : ""}
+      </div>
+    </div>
+  );
+}
+
 export function HoverCard({
   file,
   overlay,
@@ -57,8 +108,6 @@ export function HoverCard({
   const slash = file.file_path.lastIndexOf("/");
   const dir = slash < 0 ? "" : file.file_path.slice(0, slash + 1);
   const name = slash < 0 ? file.file_path : file.file_path.slice(slash + 1);
-  const left = x + CARD_GAP + CARD_W > width ? x - CARD_GAP - CARD_W : x + CARD_GAP;
-  const top = y + CARD_GAP + CARD_H > height ? y - CARD_GAP - CARD_H : y + CARD_GAP;
   return (
     <div
       data-testid="map-hover-card"
@@ -66,8 +115,8 @@ export function HoverCard({
       // card. The name is the answer to "what am I pointing at" and is never
       // truncated: it wraps instead, and the directory above it is the part
       // that gives way when the path is long.
-      className="pointer-events-none absolute z-20 w-max max-w-[300px] rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-elevated)] px-2.5 py-1.5 shadow-md"
-      style={{ left: Math.max(0, left), top: Math.max(0, top) }}
+      className={CARD}
+      style={cardPosition(x, y, width, height)}
     >
       {dir ? (
         <div className="truncate font-mono text-[10px] leading-tight text-[var(--color-text-tertiary)]">

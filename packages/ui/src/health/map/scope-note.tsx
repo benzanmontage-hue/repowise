@@ -162,3 +162,46 @@ export function MapScopeNote({
     </div>
   );
 }
+
+/**
+ * The lazily loaded field's scope: how many files are drawn so far against
+ * the repository, and how to see the rest. Every area is complete once loaded,
+ * so the only thing to say is how far the reader has zoomed in.
+ */
+export function LoadedNote({
+  loaded,
+  total,
+  matches,
+}: {
+  loaded: number;
+  total: number;
+  /** Search matches among the loaded files, or null with no search. */
+  matches: number | null;
+}) {
+  return (
+    <div
+      data-testid="map-scope"
+      className="pointer-events-none absolute bottom-3 right-3 z-20 max-w-[64%] rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-glass)] px-2.5 py-1.5 text-right text-xs text-[var(--color-text-tertiary)] shadow-sm backdrop-blur-sm sm:max-w-[52%]"
+    >
+      {loaded === 0 ? (
+        <>
+          <span className="font-mono tabular-nums">{total.toLocaleString()}</span> files in folders ·
+          zoom into one to see its files
+        </>
+      ) : (
+        <>
+          <span className="font-mono tabular-nums">
+            {loaded.toLocaleString()} of {total.toLocaleString()}
+          </span>{" "}
+          files loaded · zoom in for more
+        </>
+      )}
+      {matches !== null ? (
+        <Part>
+          <span className="tabular-nums">{matches.toLocaleString()}</span>{" "}
+          {plural(matches, "match", "matches")} loaded
+        </Part>
+      ) : null}
+    </div>
+  );
+}

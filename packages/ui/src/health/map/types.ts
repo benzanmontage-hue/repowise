@@ -61,36 +61,17 @@ export type CodeHealthOverlay =
   | "coverage"
   | "churn"
   | "dead-code"
-  | "security";
-
-/** One module = one galaxy: its files plus size aggregates. */
-export interface GalaxyAgg {
-  module: string;
-  files: CodeHealthMapFile[]; // NLOC-desc
-  totalNloc: number;
-  maxNloc: number;
-}
+  | "security"
+  /** Area-level: who leads each folder. */
+  | "owner"
+  /** Area-level: share of a folder only one person has changed. */
+  | "knowledge";
 
 export interface FileNode {
   file: CodeHealthMapFile;
   x: number;
   y: number;
   r: number;
-}
-
-export interface Galaxy {
-  /** Grouping key: the module, a sub-folder, or a fold of small modules. */
-  module: string;
-  /** What the galaxy is called on the field. */
-  label: string;
-  /** Modules folded into this galaxy; 1 for an ordinary one. */
-  members: number;
-  cx: number;
-  cy: number;
-  R: number;
-  fileCount: number;
-  colorId: number;
-  nodes: FileNode[];
 }
 
 /**
