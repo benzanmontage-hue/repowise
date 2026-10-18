@@ -3,12 +3,12 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import useSWR from "swr";
-import { simulateOffboarding, formatLeaveParam } from "@repowise-dev/ui/owners/offboarding";
+import { simulateOffboarding } from "@repowise-dev/ui/owners/offboarding";
 import { OffboardingResultView } from "@repowise-dev/ui/owners/offboarding-result";
 import { ApiError } from "@repowise-dev/ui/shared/api-error";
 import { Skeleton } from "@repowise-dev/ui/ui/skeleton";
-import { getKnowledgeMatrix } from "@/lib/api/owners";
+import { useKnowledgeMatrix } from "./use-knowledge-matrix";
+import { contributorsHref } from "./use-contributors-url";
 
 /**
  * "What depends on them" on a person page: the single-person off-boarding.
@@ -22,9 +22,7 @@ export function WhatDependsOnThem({ repoId, ownerKey }: { repoId: string; ownerK
   const t = useTranslations("views.contributors");
   const tCommon = useTranslations("common");
   const base = `/repos/${repoId}`;
-  const matrix = useSWR(`knowledge-matrix:${repoId}`, () => getKnowledgeMatrix(repoId), {
-    revalidateOnFocus: false,
-  });
+  const matrix = useKnowledgeMatrix(repoId);
   const result = useMemo(
     () => (matrix.data ? simulateOffboarding(matrix.data, [ownerKey]) : null),
     [matrix.data, ownerKey],
@@ -42,7 +40,6 @@ export function WhatDependsOnThem({ repoId, ownerKey }: { repoId: string; ownerK
   }
   if (!result) return <Skeleton className="h-48 w-full rounded-lg" />;
 
-  const scenario = new URLSearchParams({ tab: "offboarding", leave: formatLeaveParam([ownerKey]) });
   return (
     <OffboardingResultView
       result={result}
@@ -51,7 +48,7 @@ export function WhatDependsOnThem({ repoId, ownerKey }: { repoId: string; ownerK
       initialAreas={5}
       secondaryAction={
         <Link
-          href={`${base}/owners?${scenario.toString()}`}
+          href={contributorsHref(base, "offboarding", [ownerKey])}
           className="text-xs text-[var(--color-accent-primary)] hover:underline"
         >
           {t("openInOffboarding")}

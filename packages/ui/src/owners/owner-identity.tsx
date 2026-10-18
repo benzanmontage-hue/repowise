@@ -15,38 +15,40 @@ export function ownerActivity(owner: Pick<OwnerProfile, "commit_count_90d" | "co
  * index folded into them, so a reader looking for "jdoe@old-corp" finds the
  * person they know. Plain words, no badges: activity is a fact, not a grade.
  */
-export function OwnerIdentity({ owner }: { owner: OwnerProfile }) {
+function activityLine(owner: OwnerProfile): string | null {
   const activity = ownerActivity(owner);
-  const otherNames = owner.aliases.names.filter((n) => n !== owner.name);
-  const otherEmails = owner.aliases.emails.filter((e) => e !== owner.email);
-  const aliases = [...otherNames, ...otherEmails];
-  const commits = owner.commit_count_90d ?? owner.commit_count_90d_at_least ?? null;
+  if (activity !== "active") return activity && "Quiet: no commit in the last 90 days";
+  const exact = owner.commit_count_90d;
+  const commits = exact ?? owner.commit_count_90d_at_least ?? 0;
+  const floor = exact == null ? "at least " : "";
+  return `Active: ${floor}${commits.toLocaleString()} ${commits === 1 ? "commit" : "commits"} in the last 90 days`;
+}
 
-  if (!activity && aliases.length === 0 && !owner.email) return null;
+/** Every folded-in name and address other than the ones the page already shows. */
+function otherIdentities(owner: OwnerProfile): string[] {
+  return [
+    ...owner.aliases.names.filter((n) => n !== owner.name),
+    ...owner.aliases.emails.filter((e) => e !== owner.email),
+  ];
+}
+
+export function OwnerIdentity({ owner }: { owner: OwnerProfile }) {
+  const aliases = otherIdentities(owner);
+  const rows = [
+    { label: "Activity", hidden: true, value: activityLine(owner), mono: false },
+    { label: "Email", hidden: false, value: owner.email !== owner.name ? owner.email : null, mono: true },
+    { label: "Also commits as", hidden: false, value: aliases.join(", ") || null, mono: true },
+  ].filter((r) => r.value);
+
+  if (rows.length === 0) return null;
   return (
     <dl className="flex flex-col gap-1.5 text-xs text-[var(--color-text-secondary)]">
-      {activity && (
-        <div className="flex flex-wrap gap-x-2">
-          <dt className="sr-only">Activity</dt>
-          <dd>
-            {activity === "active"
-              ? `Active: ${commits != null && owner.commit_count_90d == null ? "at least " : ""}${(commits ?? 0).toLocaleString()} ${commits === 1 ? "commit" : "commits"} in the last 90 days`
-              : "Quiet: no commit in the last 90 days"}
-          </dd>
+      {rows.map((r) => (
+        <div key={r.label} className="flex flex-wrap gap-x-2">
+          <dt className={r.hidden ? "sr-only" : "text-[var(--color-text-tertiary)]"}>{r.label}</dt>
+          <dd className={r.mono ? "font-mono [overflow-wrap:anywhere]" : undefined}>{r.value}</dd>
         </div>
-      )}
-      {owner.email && owner.email !== owner.name && (
-        <div className="flex flex-wrap gap-x-2">
-          <dt className="text-[var(--color-text-tertiary)]">Email</dt>
-          <dd className="font-mono [overflow-wrap:anywhere]">{owner.email}</dd>
-        </div>
-      )}
-      {aliases.length > 0 && (
-        <div className="flex flex-wrap gap-x-2">
-          <dt className="text-[var(--color-text-tertiary)]">Also commits as</dt>
-          <dd className="font-mono [overflow-wrap:anywhere]">{aliases.join(", ")}</dd>
-        </div>
-      )}
+      ))}
     </dl>
   );
 }

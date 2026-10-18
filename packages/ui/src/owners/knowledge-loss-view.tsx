@@ -86,6 +86,22 @@ export function KnowledgeLossView({
   );
 }
 
+/** One quiet owner in words: when they last committed, what of theirs changed, what loses its majority. */
+function quietOwnerSentence({ owner, result: { totals } }: QuietOwnerExposure, last: string | null): string {
+  const lastCommit = last ? `Last commit ${last}. ` : "";
+  const changing =
+    owner.files_owned === 1
+      ? "The one file they own changed lately. "
+      : `${owner.changing_files_owned.toLocaleString()} of the ${owner.files_owned.toLocaleString()} files they own changed lately. `;
+  if (totals.atRiskFiles === 0) {
+    return `${lastCommit}${changing}The people who stay hold the majority of every file they worked on.`;
+  }
+  const files = `${totals.atRiskFiles.toLocaleString()} ${totals.atRiskFiles === 1 ? "file has" : "files have"}`;
+  const severe =
+    totals.severeFiles > 0 ? `, ${totals.severeFiles.toLocaleString()} of them hotspots or in weak health` : "";
+  return `${lastCommit}${changing}Without them, ${files} no majority author left${severe}.`;
+}
+
 function QuietOwnerRow({
   row,
   onPrompt,
@@ -105,7 +121,6 @@ function QuietOwnerRow({
   const A = LinkComponent ?? "a";
   const { owner, result } = row;
   const { totals } = result;
-  const last = formatRelativeTimeOrNull(owner.last_commit_at);
   const panelId = React.useId();
   const personHref = hrefForPerson?.(owner.key);
 
@@ -122,13 +137,7 @@ function QuietOwnerRow({
             <span className="font-medium text-[var(--color-text-primary)]">{owner.name}</span>
           )}
           <p className="text-xs leading-relaxed text-[var(--color-text-secondary)] [text-wrap:pretty]">
-            {last ? `Last commit ${last}. ` : ""}
-            {owner.files_owned === 1
-              ? "The one file they own changed lately. "
-              : `${owner.changing_files_owned.toLocaleString()} of the ${owner.files_owned.toLocaleString()} files they own changed lately. `}
-            {totals.atRiskFiles > 0
-              ? `Without them, ${totals.atRiskFiles.toLocaleString()} ${totals.atRiskFiles === 1 ? "file has" : "files have"} no majority author left${totals.severeFiles > 0 ? `, ${totals.severeFiles.toLocaleString()} of them hotspots or in weak health` : ""}.`
-              : "The people who stay hold the majority of every file they worked on."}
+            {quietOwnerSentence(row, formatRelativeTimeOrNull(owner.last_commit_at))}
           </p>
           <div className="mt-1 flex flex-wrap gap-x-4 text-xs">
             {totals.atRiskFiles > 0 && (

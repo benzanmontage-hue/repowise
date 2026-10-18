@@ -16,6 +16,30 @@ export interface ContributorsLedeProps {
  * with the two reads that say where to look next. People only; automation
  * owns nothing here.
  */
+/** The two reads beside the lede, each present only when it has something to point at. */
+function ledeReads(summary: OwnersSummary, hrefForTab: ContributorsLedeProps["hrefForTab"]): ReadItem[] {
+  const reads: ReadItem[] = [
+    {
+      key: "hotspots",
+      label: "Single-author hotspots",
+      value: summary.single_owner_hotspots.toLocaleString(),
+      unit: `of ${summary.single_owner_files.toLocaleString()} single-author files`,
+      why: "Busy files only one person has written. The cheapest place to get a second reader.",
+      href: hrefForTab("risks"),
+    },
+    {
+      key: "quiet",
+      label: "Quiet owners of changing code",
+      value: summary.quiet_owners_total.toLocaleString(),
+      unit: summary.quiet_owners_total === 1 ? "person" : "people",
+      why: `No commit in ${summary.activity_window_days} days, yet files they own changed in that time.`,
+      href: hrefForTab("loss"),
+    },
+  ];
+  const present = { hotspots: summary.single_owner_hotspots > 0, quiet: summary.quiet_owners_total > 0 };
+  return reads.filter((r) => present[r.key as keyof typeof present]);
+}
+
 export function ContributorsLede({ summary, hrefForTab, LinkComponent }: ContributorsLedeProps) {
   const tf = summary.truck_factor;
   if (tf == null || summary.owned_files === 0) return null;
@@ -24,28 +48,7 @@ export function ContributorsLede({ summary, hrefForTab, LinkComponent }: Contrib
   // so when it is within the concentration list those are the people.
   const named = tf <= summary.concentration.owners.length ? summary.concentration.owners.slice(0, tf) : [];
   const people = tf === 1 ? "one person" : `${tf.toLocaleString()} people`;
-
-  const reads: ReadItem[] = [];
-  if (summary.single_owner_hotspots > 0) {
-    reads.push({
-      key: "hotspots",
-      label: "Single-author hotspots",
-      value: summary.single_owner_hotspots.toLocaleString(),
-      unit: `of ${summary.single_owner_files.toLocaleString()} single-author files`,
-      why: "Busy files only one person has written. The cheapest place to get a second reader.",
-      href: hrefForTab("risks"),
-    });
-  }
-  if (summary.quiet_owners_total > 0) {
-    reads.push({
-      key: "quiet",
-      label: "Quiet owners of changing code",
-      value: summary.quiet_owners_total.toLocaleString(),
-      unit: summary.quiet_owners_total === 1 ? "person" : "people",
-      why: `No commit in ${summary.activity_window_days} days, yet files they own changed in that time.`,
-      href: hrefForTab("loss"),
-    });
-  }
+  const reads = ledeReads(summary, hrefForTab);
 
   return (
     <section className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-10">

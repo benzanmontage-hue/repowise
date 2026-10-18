@@ -12,11 +12,16 @@
  * page, the person page and the area map's off-boarding lens all render.
  */
 
-import type { KnowledgeMatrix } from "@repowise-dev/types/owners";
+import type {
+  KnowledgeMatrix,
+  KnowledgeMatrixFile,
+  KnowledgeMatrixShare,
+} from "@repowise-dev/types/owners";
 import {
   compareAreas,
   compareFileFacts,
   fileFacts,
+  groupByDir,
   mostNamed,
   personAt,
   type KnowledgeFileFacts,
@@ -76,79 +81,94 @@ export interface OffboardingResult {
   areas: OffboardingArea[];
 }
 
+/** Matrix indices of the leavers it knows, in the order asked. */
+function leaverIndices(matrix: KnowledgeMatrix, keys: readonly string[]): Set<number> {
+  const keyIndex = new Map(matrix.authors.map((a, i) => [a.key, i]));
+  return new Set(keys.flatMap((key) => (keyIndex.has(key) ? [keyIndex.get(key)!] : [])));
+}
+
+/** What the leavers hold of one file, and the strongest author who stays. */
+function fileExposure(
+  shares: KnowledgeMatrixShare[],
+  leaving: ReadonlySet<number>,
+): { lost: number; heir: KnowledgeMatrixShare | null } {
+  let lost = 0;
+  let heir: KnowledgeMatrixShare | null = null;
+  for (const entry of shares) {
+    if (leaving.has(entry[0])) lost += entry[1];
+    else if (!heir || entry[1] > heir[1]) heir = entry;
+  }
+  return { lost, heir };
+}
+
+function atRiskFile(
+  matrix: KnowledgeMatrix,
+  row: KnowledgeMatrixFile,
+  lost: number,
+  heir: KnowledgeMatrixShare | null,
+): OffboardingFile {
+  const facts = fileFacts(matrix, row);
+  return {
+    ...facts,
+    lostShare: Math.min(1, lost),
+    // Rounded shares can sum a hair past 1; clamp so "remaining" never reads negative.
+    remainingShare: Math.max(0, 1 - lost),
+    severity: facts.isHotspot || facts.lowHealth ? "severe" : "at_risk",
+    inheritor: heir ? { ...personAt(matrix, heir[0]), share: heir[1] } : null,
+  };
+}
+
+const isSevere = (f: OffboardingFile) => f.severity === "severe";
+const isHotspot = (f: OffboardingFile) => f.isHotspot;
+const nlocOf = (files: readonly OffboardingFile[]) => files.reduce((s, f) => s + f.nloc, 0);
+
+function rollUpAreas(files: OffboardingFile[]): OffboardingArea[] {
+  return Array.from(groupByDir(files), ([dir, group]) => ({
+    dir,
+    files: group,
+    fileCount: group.length,
+    severe: group.filter(isSevere).length,
+    hotspots: group.filter(isHotspot).length,
+    nloc: nlocOf(group),
+    inheritor: mostNamed(
+      group.flatMap((f) => (f.inheritor ? [{ person: f.inheritor, nloc: f.nloc }] : [])),
+    ),
+  })).sort(compareAreas);
+}
+
 export function simulateOffboarding(
   matrix: KnowledgeMatrix,
   leavingKeys: readonly string[],
   threshold: number = DEFAULT_OFFBOARDING_THRESHOLD,
 ): OffboardingResult {
-  const keyIndex = new Map(matrix.authors.map((a, i) => [a.key, i]));
-  const leavingIdx = new Set<number>();
-  for (const key of leavingKeys) {
-    const i = keyIndex.get(key);
-    if (i !== undefined) leavingIdx.add(i);
-  }
-
+  const leaving = leaverIndices(matrix, leavingKeys);
   const files: OffboardingFile[] = [];
   let touchedFiles = 0;
   let totalNloc = 0;
   for (const row of matrix.files) {
     totalNloc += row[2];
-    if (leavingIdx.size === 0) continue;
-    let lost = 0;
-    let heir: [number, number] | null = null;
-    for (const [author, share] of row[7]) {
-      if (leavingIdx.has(author)) lost += share;
-      else if (!heir || share > heir[1]) heir = [author, share];
-    }
+    const { lost, heir } = fileExposure(row[7], leaving);
     if (lost <= 0) continue;
     touchedFiles += 1;
-    // Rounded shares can sum a hair past 1; clamp so "remaining" never reads negative.
-    const remaining = Math.max(0, 1 - lost);
-    if (remaining >= threshold) continue;
-    const facts = fileFacts(matrix, row);
-    files.push({
-      ...facts,
-      lostShare: Math.min(1, lost),
-      remainingShare: remaining,
-      severity: facts.isHotspot || facts.lowHealth ? "severe" : "at_risk",
-      inheritor: heir ? { ...personAt(matrix, heir[0]), share: heir[1] } : null,
-    });
+    if (1 - lost < threshold) files.push(atRiskFile(matrix, row, lost, heir));
   }
   files.sort(compareFileFacts);
 
-  const byDir = new Map<string, OffboardingFile[]>();
-  for (const f of files) {
-    const bucket = byDir.get(f.dir);
-    if (bucket) bucket.push(f);
-    else byDir.set(f.dir, [f]);
-  }
-  const areas: OffboardingArea[] = Array.from(byDir, ([dir, group]) => ({
-    dir,
-    files: group,
-    fileCount: group.length,
-    severe: group.filter((f) => f.severity === "severe").length,
-    hotspots: group.filter((f) => f.isHotspot).length,
-    nloc: group.reduce((s, f) => s + f.nloc, 0),
-    inheritor: mostNamed(
-      group.flatMap((f) => (f.inheritor ? [{ person: f.inheritor, nloc: f.nloc }] : [])),
-    ),
-  })).sort(compareAreas);
-
-  const atRiskNloc = files.reduce((s, f) => s + f.nloc, 0);
+  const atRiskNloc = nlocOf(files);
   return {
-    leaving: Array.from(leavingIdx, (i) => personAt(matrix, i)),
+    leaving: Array.from(leaving, (i) => personAt(matrix, i)),
     threshold,
     totals: {
       touchedFiles,
       atRiskFiles: files.length,
-      severeFiles: files.filter((f) => f.severity === "severe").length,
-      hotspots: files.filter((f) => f.isHotspot).length,
+      severeFiles: files.filter(isSevere).length,
+      hotspots: files.filter(isHotspot).length,
       atRiskNloc,
       totalNloc,
       nlocShare: totalNloc > 0 ? atRiskNloc / totalNloc : 0,
       trackedFiles: matrix.files.length,
     },
-    areas,
+    areas: rollUpAreas(files),
   };
 }
 

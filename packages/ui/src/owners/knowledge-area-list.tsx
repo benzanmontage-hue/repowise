@@ -68,10 +68,7 @@ export function KnowledgeAreaRow({
   defaultOpen = false,
 }: KnowledgeAreaRowProps) {
   const [open, setOpen] = React.useState(defaultOpen);
-  const [all, setAll] = React.useState(false);
-  const A = LinkComponent ?? "a";
   const panelId = React.useId();
-  const shown = all ? files : files.slice(0, FILE_LIMIT);
 
   return (
     <li className="border-b border-[var(--color-border-default)] py-3">
@@ -106,45 +103,74 @@ export function KnowledgeAreaRow({
         <AiPromptButton onClick={onPrompt} label={groupPromptLabel(files.length)} />
       </div>
 
-      {open && (
-        <ul id={panelId} className="mt-2 flex flex-col pl-5">
-          {shown.map((f) => {
-            const name = dir ? f.path.slice(dir.length + 1) : f.path;
-            return (
-              <li
-                key={f.path}
-                className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 py-1"
-              >
-                <span className="flex min-w-0 items-baseline gap-2">
-                  {base ? (
-                    <A href={fileEntityPath(base, f.path)} className="group min-w-0 no-underline" title={f.path}>
-                      <PathText path={name} />
-                    </A>
-                  ) : (
-                    <PathText path={name} />
-                  )}
-                  <FileMarks file={f} />
-                </span>
-                {f.note && (
-                  <span className="font-mono text-xs tabular-nums text-[var(--color-text-tertiary)]">
-                    {f.note}
-                  </span>
-                )}
-              </li>
-            );
-          })}
-          {files.length > shown.length && (
-            <li>
-              <button
-                type="button"
-                onClick={() => setAll(true)}
-                className="mt-1 text-xs text-[var(--color-accent-primary)] hover:underline"
-              >
-                Show all {files.length.toLocaleString()} files
-              </button>
-            </li>
-          )}
-        </ul>
+      {open && <AreaFiles id={panelId} dir={dir} files={files} base={base} LinkComponent={LinkComponent} />}
+    </li>
+  );
+}
+
+/** An open area's files, named relative to the area, the first few then "Show all". */
+function AreaFiles({
+  id,
+  dir,
+  files,
+  base,
+  LinkComponent,
+}: {
+  id: string;
+  dir: string;
+  files: KnowledgeAreaFile[];
+  base?: string | undefined;
+  LinkComponent?: React.ElementType | undefined;
+}) {
+  const [all, setAll] = React.useState(false);
+  const shown = all ? files : files.slice(0, FILE_LIMIT);
+  return (
+    <ul id={id} className="mt-2 flex flex-col pl-5">
+      {shown.map((f) => (
+        <AreaFileRow key={f.path} file={f} dir={dir} base={base} LinkComponent={LinkComponent} />
+      ))}
+      {files.length > shown.length && (
+        <li>
+          <button
+            type="button"
+            onClick={() => setAll(true)}
+            className="mt-1 text-xs text-[var(--color-accent-primary)] hover:underline"
+          >
+            Show all {files.length.toLocaleString()} files
+          </button>
+        </li>
+      )}
+    </ul>
+  );
+}
+
+function AreaFileRow({
+  file,
+  dir,
+  base,
+  LinkComponent,
+}: {
+  file: KnowledgeAreaFile;
+  dir: string;
+  base?: string | undefined;
+  LinkComponent?: React.ElementType | undefined;
+}) {
+  const A = LinkComponent ?? "a";
+  const name = <PathText path={dir ? file.path.slice(dir.length + 1) : file.path} />;
+  return (
+    <li className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 py-1">
+      <span className="flex min-w-0 items-baseline gap-2">
+        {base ? (
+          <A href={fileEntityPath(base, file.path)} className="group min-w-0 no-underline" title={file.path}>
+            {name}
+          </A>
+        ) : (
+          name
+        )}
+        <FileMarks file={file} />
+      </span>
+      {file.note && (
+        <span className="font-mono text-xs tabular-nums text-[var(--color-text-tertiary)]">{file.note}</span>
       )}
     </li>
   );

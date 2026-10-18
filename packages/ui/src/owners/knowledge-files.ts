@@ -92,19 +92,25 @@ export function compareAreas(
 export function mostNamed(
   picks: Iterable<{ person: KnowledgePerson; nloc: number }>,
 ): { person: KnowledgePerson; files: number } | null {
-  const tally = new Map<string, { person: KnowledgePerson; files: number; nloc: number }>();
+  type Tally = { person: KnowledgePerson; files: number; nloc: number };
+  const tally = new Map<string, Tally>();
   for (const { person, nloc } of picks) {
-    const t = tally.get(person.key);
-    if (t) {
-      t.files += 1;
-      t.nloc += nloc;
-    } else {
-      tally.set(person.key, { person, files: 1, nloc });
-    }
+    const t = tally.get(person.key) ?? { person, files: 0, nloc: 0 };
+    t.files += 1;
+    t.nloc += nloc;
+    tally.set(person.key, t);
   }
-  let best: { person: KnowledgePerson; files: number; nloc: number } | null = null;
-  for (const t of tally.values()) {
-    if (!best || t.files > best.files || (t.files === best.files && t.nloc > best.nloc)) best = t;
+  const ranked = [...tally.values()].sort((a, b) => b.files - a.files || b.nloc - a.nloc);
+  return ranked[0] ? { person: ranked[0].person, files: ranked[0].files } : null;
+}
+
+/** Items bucketed by their directory, buckets in first-seen order. */
+export function groupByDir<T extends { dir: string }>(items: readonly T[]): Map<string, T[]> {
+  const byDir = new Map<string, T[]>();
+  for (const item of items) {
+    const bucket = byDir.get(item.dir);
+    if (bucket) bucket.push(item);
+    else byDir.set(item.dir, [item]);
   }
-  return best ? { person: best.person, files: best.files } : null;
+  return byDir;
 }

@@ -8,11 +8,12 @@
  * measure the bus factor counts, not the blame owner.
  */
 
-import type { KnowledgeMatrix } from "@repowise-dev/types/owners";
+import type { KnowledgeMatrix, KnowledgeMatrixFile } from "@repowise-dev/types/owners";
 import {
   compareAreas,
   compareFileFacts,
   fileFacts,
+  groupByDir,
   isSingleOwner,
   mostNamed,
   personAt,
@@ -50,42 +51,41 @@ export interface KnowledgeRisks {
   trackedFiles: number;
 }
 
+/** The file as a knowledge risk, or null when it has a second author or does not matter now. */
+function riskFile(matrix: KnowledgeMatrix, row: KnowledgeMatrixFile): KnowledgeRiskFile | null {
+  const [top, next] = row[7];
+  if (!isSingleOwner(row[5]) || !top) return null;
+  const facts = fileFacts(matrix, row);
+  if (!facts.isHotspot && !facts.lowHealth) return null;
+  return {
+    ...facts,
+    holder: { ...personAt(matrix, top[0]), share: top[1] },
+    second: next ? { ...personAt(matrix, next[0]), share: next[1] } : null,
+    both: facts.isHotspot && facts.lowHealth,
+  };
+}
+
+function riskArea(dir: string, files: KnowledgeRiskFile[]): KnowledgeRiskArea {
+  files.sort(compareFileFacts);
+  return {
+    dir,
+    files,
+    fileCount: files.length,
+    severe: files.filter((f) => f.both).length,
+    nloc: files.reduce((s, f) => s + f.nloc, 0),
+    holder: mostNamed(files.map((f) => ({ person: f.holder, nloc: f.nloc }))),
+    holders: new Set(files.map((f) => f.holder.key)).size,
+  };
+}
+
 export function knowledgeRisks(matrix: KnowledgeMatrix): KnowledgeRisks {
-  const byDir = new Map<string, KnowledgeRiskFile[]>();
-  let hotspots = 0;
-  let lowHealth = 0;
-  let count = 0;
-  for (const row of matrix.files) {
-    const [top, next] = row[7];
-    if (!isSingleOwner(row[5]) || !top) continue;
-    const facts = fileFacts(matrix, row);
-    if (!facts.isHotspot && !facts.lowHealth) continue;
-    count += 1;
-    if (facts.isHotspot) hotspots += 1;
-    if (facts.lowHealth) lowHealth += 1;
-    const file: KnowledgeRiskFile = {
-      ...facts,
-      holder: { ...personAt(matrix, top[0]), share: top[1] },
-      second: next ? { ...personAt(matrix, next[0]), share: next[1] } : null,
-      both: facts.isHotspot && facts.lowHealth,
-    };
-    const bucket = byDir.get(facts.dir);
-    if (bucket) bucket.push(file);
-    else byDir.set(facts.dir, [file]);
-  }
-
-  const areas = Array.from(byDir, ([dir, files]): KnowledgeRiskArea => {
-    files.sort(compareFileFacts);
-    return {
-      dir,
-      files,
-      fileCount: files.length,
-      severe: files.filter((f) => f.both).length,
-      nloc: files.reduce((s, f) => s + f.nloc, 0),
-      holder: mostNamed(files.map((f) => ({ person: f.holder, nloc: f.nloc }))),
-      holders: new Set(files.map((f) => f.holder.key)).size,
-    };
-  }).sort(compareAreas);
-
-  return { areas, files: count, hotspots, lowHealth, trackedFiles: matrix.files.length };
+  const files = matrix.files.flatMap((row) => riskFile(matrix, row) ?? []);
+  const areas = Array.from(groupByDir(files), ([dir, group]) => riskArea(dir, group)).sort(compareAreas);
+  return {
+    areas,
+    files: files.length,
+    hotspots: files.filter((f) => f.isHotspot).length,
+    lowHealth: files.filter((f) => f.lowHealth).length,
+    trackedFiles: matrix.files.length,
+  };
 }
