@@ -118,8 +118,9 @@ function Lede({
       </PageLede>
     );
   }
-  // Every kept pair predates the dependency check: there is no verdict to give.
-  if (totals.pairs > 0 && totals.unlabelled_pairs === totals.pairs) {
+  // Some kept pairs predate the dependency check: "all clear" would claim more
+  // than was checked.
+  if (totals.unlabelled_pairs > 0) {
     return <p className="text-xs text-[var(--color-text-secondary)]">{copy.unchecked}</p>;
   }
   return (

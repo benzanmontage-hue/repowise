@@ -1026,7 +1026,7 @@
         "depth": "分组深度",
         "autoDepth": "自动（{depth}）"
       },
-      "unchecked": "此索引早于依赖检查，因此无法判断哪些区域在没有导入关联的情况下一起变更。运行 repowise update 以补充该检查。",
+      "unchecked": "此索引的部分内容早于依赖检查，因此无法判断哪些区域在没有导入关联的情况下一起变更。运行 repowise update 以补充该检查。",
       "hiddenMark": "区域之间没有导入关联"
     }
   },

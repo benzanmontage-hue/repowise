@@ -1000,7 +1000,7 @@
       "filePairs": "{count, plural, one {# file pair} other {# file pairs}}",
       "coChanges": "{count, plural, one {# co-change} other {# co-changes}}",
       "lastTogether": "last {date}",
-      "unexplained": "{count, number} file pairs with no direct import ({pct}%)",
+      "unexplained": "{count, plural, one {# file pair} other {# file pairs}} with no direct import ({pct}%)",
       "allExplained": "All explained",
       "promptLabel": "Copy prompt for your agent",
       "bulkPromptLabel": "Copy prompt for these {count, number}",
@@ -1026,7 +1026,7 @@
         "depth": "Group at depth",
         "autoDepth": "Auto ({depth})"
       },
-      "unchecked": "This index predates the dependency check, so it cannot say which areas change together without an import link. Run repowise update to add it.",
+      "unchecked": "Part of this index predates the dependency check, so it cannot say which areas change together without an import link. Run repowise update to add it.",
       "hiddenMark": "No import link between the areas"
     }
   },

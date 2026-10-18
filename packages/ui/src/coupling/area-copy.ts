@@ -22,13 +22,14 @@ export const DEFAULT_AREA_COUPLING_COPY = {
       ? `Checked ${plural(pairs, "file pair", "file pairs")} that change together across areas.`
       : "No file pairs change together across areas under these filters.",
   unchecked:
-    "This index predates the dependency check, so it cannot say which areas change together without an import link. Run repowise update to add it.",
+    "Part of this index predates the dependency check, so it cannot say which areas change together without an import link. Run repowise update to add it.",
   hiddenMark: "No import link between the areas",
   showing: (shown: number, total: number) => `Showing the top ${fmt(shown)} of ${fmt(total)} area pairs.`,
   filePairs: (n: number) => plural(n, "file pair", "file pairs"),
   coChanges: (n: number) => plural(n, "co-change", "co-changes"),
   lastTogether: (date: string) => `last ${date}`,
-  unexplained: (n: number, pct: number) => `${fmt(n)} file pairs with no direct import (${pct}%)`,
+  unexplained: (n: number, pct: number) =>
+    `${plural(n, "file pair", "file pairs")} with no direct import (${pct}%)`,
   allExplained: "All explained",
   promptLabel: "Copy prompt for your agent",
   bulkPromptLabel: (n: number) => `Copy prompt for these ${fmt(n)}`,
