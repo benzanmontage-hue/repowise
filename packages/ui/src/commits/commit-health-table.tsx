@@ -4,6 +4,7 @@ import { ResponsiveTable, type ResponsiveColumn } from "../shared/responsive-tab
 import { SeverityMark } from "../health/severity-mark";
 import type { Severity } from "../health/tokens";
 import type { CommitHealthFinding } from "@repowise-dev/types/git";
+import { DIRECT_ATTRIBUTION } from "./health-delta";
 
 export interface CommitHealthTableProps {
   findings: CommitHealthFinding[];
@@ -13,9 +14,6 @@ export interface CommitHealthTableProps {
   className?: string;
 }
 
-/** Bases where the change wrote the code the finding sits on. The rest only
- *  touched the file, which is a weaker claim and is labelled as one. */
-const DIRECT = new Set(["added_lines", "changed_symbol", "new_file"]);
 
 const INDIRECT_NOTE: Record<string, string> = {
   changed_call_edge: "reached through a call this commit edited",
@@ -62,7 +60,7 @@ function columns(noun: string): ResponsiveColumn<CommitHealthFinding>[] {
       render: (f) => (
         <span>
           {f.reason}
-          {!DIRECT.has(f.attribution_basis) && (
+          {!DIRECT_ATTRIBUTION.has(f.attribution_basis) && (
             <span className="text-[var(--color-text-tertiary)]">
               {" "}
               (in a file this {noun} touched, not on a line it wrote)

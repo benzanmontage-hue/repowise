@@ -399,8 +399,7 @@
       },
       "verdictLabel": "该变更对代码健康度的影响",
       "verdictNeutral": "比较结果干净：没有新增、恶化或解决任何问题。",
-      "verdictImproved": "{better, plural, other {解决了 # 个已有问题}}，且未引入新问题。",
-      "verdictWorse": "{worse, plural, other {新增或恶化了 # 个问题}}{better, plural, =0 {，未解决任何问题。} other {，并解决了 # 个已有问题。}}",
+      "verdictImproved": "{better, plural, other {解决了 # 个问题}}，且没有让任何地方变差。干得漂亮。",
       "verdictPartial": "{unscanned, plural, =0 {该变更有部分内容无法比较，因此这些数字是下限。} other {该变更有 # 个提交尚未扫描，因此这些数字是下限。}}",
       "verdictUnknown": "该变更的提交尚未经当前分析器分析；最近的提交会在每次更新时依次分析。",
       "gotWorse": "变差的部分",
@@ -418,7 +417,16 @@
       "metaIssues": "关联议题 {issues}",
       "metaProvenance": "AI 来源 {label}",
       "change": "变更",
-      "promptActionFix": "复制提示词，修复该变更让代码变差的地方"
+      "promptActionFix": "复制提示词，修复该变更让代码变差的地方",
+      "ledeUnitWorse": "个问题新增或恶化 · 已解决 {better} 个",
+      "ledeUnitBetter": "个问题已解决 · 没有让任何地方变差",
+      "ledeUnitNeutral": "个问题发生变化",
+      "verdictWorseReading": "下面按文件列出每个问题，最严重的在前，并给出符号和行号。提示词会把它们交给你的智能体。",
+      "fileFindings": "{count, plural, other {# 个问题}}",
+      "moreFiles": "{count, plural, other {再显示 # 个文件}}",
+      "findingWas": "原为 {severity}",
+      "findingIndirect": "仅改动了该文件，并非它写下的行",
+      "promptActionFile": "复制 {file} 的提示词"
     },
     "architecture": {
       "tabs": {

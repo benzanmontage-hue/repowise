@@ -2,34 +2,33 @@ import type { ReactNode } from "react";
 import { getTranslations } from "next-intl/server";
 import { PageLede } from "@repowise-dev/ui/shared/page-lede";
 import { OverviewSection } from "@repowise-dev/ui/overview";
-import { CommitHealthTable } from "@repowise-dev/ui/commits/commit-health-table";
-import {
-  betterCount,
-  healthDeltaKind,
-  worseCount,
-  type HealthDeltaKind,
-} from "@repowise-dev/ui/commits/health-delta";
+import { FindingsByFile } from "@repowise-dev/ui/commits/findings-by-file";
+import { HealthDeltaMark } from "@repowise-dev/ui/commits/health-delta-mark";
+import { betterCount, healthDeltaKind, worseCount } from "@repowise-dev/ui/commits/health-delta";
+import type { ChangePromptInput } from "@repowise-dev/ui/health/ai-prompt-builder";
 import type { ChangeHealthResponse } from "@repowise-dev/types/history";
+import { filePromptInput, healthDeltaLabels } from "@/lib/changes";
+import { ChangePromptAction } from "./change-prompt-action";
 
 type Health = ChangeHealthResponse | null | undefined;
 
-/** Green only for a real improvement, red only for a regression. */
-const VALUE_COLOR: Partial<Record<HealthDeltaKind, string>> = {
-  improved: "var(--color-success)",
-  worsened: "var(--color-error)",
-};
-
 /**
- * The change page's lede: what the change's commits did to code health, the
- * sentence that says how much, and the primary action when there is work to
- * hand over. A change none of whose commits was scanned says so, never reads
- * as clean.
+ * The change page's lede, figure first: how many findings the change made
+ * worse (or, when it only helped, how many it resolved), the dot-and-word
+ * mark beside it, one reading, and the primary action when there is work to
+ * hand over. A change none of whose commits was analysed says so.
  */
 export async function ChangeHealthLede({ health, action }: { health: Health; action?: ReactNode }) {
   const t = await getTranslations("views.changes");
+  const labels = healthDeltaLabels(t);
   if (!health) {
     return (
-      <PageLede label={t("verdictLabel")} value={t("healthLabels.notCompared")} action={action}>
+      <PageLede
+        label={t("verdictLabel")}
+        value="—"
+        badge={<HealthDeltaMark delta={null} labels={labels} />}
+        action={action}
+      >
         <p>{t("verdictUnknown")}</p>
       </PageLede>
     );
@@ -37,20 +36,21 @@ export async function ChangeHealthLede({ health, action }: { health: Health; act
   const kind = healthDeltaKind(health);
   const better = betterCount(health);
   const worse = worseCount(health);
-  const sentence =
-    kind === "neutral"
-      ? t("verdictNeutral")
-      : kind === "improved"
-        ? t("verdictImproved", { better })
-        : t("verdictWorse", { worse, better });
+  const lead =
+    kind === "improved"
+      ? { value: better, unit: t("ledeUnitBetter", { better }), reading: t("verdictImproved", { better }) }
+      : kind === "neutral"
+        ? { value: 0, unit: t("ledeUnitNeutral"), reading: t("verdictNeutral") }
+        : { value: worse, unit: t("ledeUnitWorse", { worse, better }), reading: t("verdictWorseReading") };
   return (
     <PageLede
       label={t("verdictLabel")}
-      value={t(`healthLabels.${kind}`)}
-      valueColor={VALUE_COLOR[kind]}
+      value={String(lead.value)}
+      unit={lead.unit}
+      badge={<HealthDeltaMark delta={health} labels={labels} figures={false} />}
       action={action}
     >
-      <p>{sentence}</p>
+      <p>{lead.reading}</p>
       {health.status === "partial" && (
         <p>{t("verdictPartial", { unscanned: health.unscanned_commits })}</p>
       )}
@@ -60,10 +60,10 @@ export async function ChangeHealthLede({ health, action }: { health: Health; act
 
 /**
  * "Got worse": the findings the change's commits introduced or made more
- * severe. What got better is the lede's count; a resolved finding has no
- * location left to list.
+ * severe, grouped by file, each file with a quiet prompt for its findings.
+ * What got better is the lede's count; a resolved finding has no location.
  */
-export async function ChangeGotWorse({ health }: { health: Health }) {
+export async function ChangeGotWorse({ health, prompt }: { health: Health; prompt: ChangePromptInput }) {
   const findings = health?.findings ?? [];
   if (!health || findings.length === 0) return null;
   const t = await getTranslations("views.changes");
@@ -77,7 +77,18 @@ export async function ChangeGotWorse({ health }: { health: Health }) {
           : t("gotWorseDescription")
       }
     >
-      <CommitHealthTable findings={findings} noun="change" />
+      <FindingsByFile
+        findings={findings}
+        labels={{
+          count: (n) => t("fileFindings", { count: n }),
+          more: (n) => t("moreFiles", { count: n }),
+          was: (severity) => t("findingWas", { severity }),
+          indirect: t("findingIndirect"),
+        }}
+        fileAction={(group) => (
+          <ChangePromptAction quiet subject={group.path} change={filePromptInput(prompt, group.path)} />
+        )}
+      />
     </OverviewSection>
   );
 }

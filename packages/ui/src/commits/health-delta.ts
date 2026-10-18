@@ -38,3 +38,18 @@ export function healthDeltaKind(d: HealthDeltaCounts): HealthDeltaKind {
   if (better) return "improved";
   return worse ? "worsened" : "neutral";
 }
+
+/** Attribution bases where the change wrote the code a finding sits on. The
+ *  rest only touched the file, a weaker claim that is labelled as one. */
+export const DIRECT_ATTRIBUTION: ReadonlySet<string> = new Set(["added_lines", "changed_symbol", "new_file"]);
+
+/** Findings grouped by file, files in order of their first (worst) finding. */
+export function groupFindingsByFile<F extends { path: string }>(findings: F[]): { path: string; findings: F[] }[] {
+  const groups = new Map<string, F[]>();
+  for (const f of findings) {
+    const group = groups.get(f.path);
+    if (group) group.push(f);
+    else groups.set(f.path, [f]);
+  }
+  return [...groups].map(([path, items]) => ({ path, findings: items }));
+}

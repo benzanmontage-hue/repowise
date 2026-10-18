@@ -5,6 +5,7 @@
  */
 import type { ChangeListItem, ChangeRecord, EvidenceItem } from "@repowise-dev/types/changes";
 import type { ChangePromptInput } from "@repowise-dev/ui/health/ai-prompt-builder";
+import type { HealthDeltaLabels } from "@repowise-dev/ui/commits/health-delta-mark";
 
 /** The change's short name: the forge ref when it has one, else a trimmed id. */
 export function changeLabel(c: Pick<ChangeListItem, "forge_ref" | "id">): string {
@@ -123,5 +124,23 @@ export function changePromptInput(
     attention: exceptions.map(
       (i) => `${evidenceWord(t, `evidenceKinds.${i.kind}`, i.label)}: ${evidenceValueText(t, i) || t(`status${i.status === "attention" ? "Attention" : "Unknown"}`)}`,
     ),
+  };
+}
+
+/** The same prompt narrowed to one file: its findings, and only that file. */
+export function filePromptInput(input: ChangePromptInput, path: string): ChangePromptInput {
+  return { ...input, files: [path], findings: input.findings.filter((f) => f.path === path), attention: [] };
+}
+
+/** The health mark's words, from the catalog; one place for the list and the lede. */
+export function healthDeltaLabels(t: (key: string) => string): HealthDeltaLabels {
+  return {
+    improved: t("healthLabels.improved"),
+    worsened: t("healthLabels.worsened"),
+    mixed: t("healthLabels.mixed"),
+    neutral: t("healthLabels.neutral"),
+    notCompared: t("healthLabels.notCompared"),
+    partial: t("healthLabels.partial"),
+    stale: t("healthLabels.stale"),
   };
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createTranslator } from "next-intl";
 import type { ChangeRecord, EvidenceItem } from "@repowise-dev/types/changes";
-import { type ChangesTranslator, changePromptInput, splitEvidence } from "./changes";
+import { type ChangesTranslator, changePromptInput, filePromptInput, healthDeltaLabels, splitEvidence } from "./changes";
 import en from "../../messages/en.json";
 import zhCN from "../../messages/zh-CN.json";
 
@@ -74,6 +74,13 @@ describe.each([
     expect(input).toMatchObject({ label: "#7", files: ["src/a.py"], resolved: 2, complete: false });
     expect(input.findings[0]).toMatchObject({ path: "src/a.py", sha: finding.sha });
     expect(input.attention).toEqual([]);
+    const one = filePromptInput({ ...input, findings: [...input.findings, { ...finding, path: "src/b.py" }] }, "src/a.py");
+    expect(one.files).toEqual(["src/a.py"]);
+    expect(one.findings.map((f) => f.path)).toEqual(["src/a.py"]);
+  });
+
+  it("names every health mark state from the catalog", () => {
+    for (const word of Object.values(healthDeltaLabels(t))) expect(word).not.toMatch(/healthLabels/);
   });
 
   it("words the flagged rows when the change was never scanned", () => {

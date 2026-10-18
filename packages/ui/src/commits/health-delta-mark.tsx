@@ -46,6 +46,8 @@ export interface HealthDeltaMarkProps {
   delta: HealthDeltaCounts | null | undefined;
   /** Words for each state; packages/ui has no i18n, so hosts pass their own. */
   labels?: Partial<HealthDeltaLabels>;
+  /** Off where the counts already lead beside the mark, e.g. a lede figure. */
+  figures?: boolean;
   className?: string;
 }
 
@@ -55,7 +57,7 @@ export interface HealthDeltaMarkProps {
  * renders quietly: it is the default state, not something to mark. A stale
  * delta (older analyzer) shows its word and a hollow dot only.
  */
-export function HealthDeltaMark({ delta, labels, className }: HealthDeltaMarkProps) {
+export function HealthDeltaMark({ delta, labels, figures = true, className }: HealthDeltaMarkProps) {
   const l = { ...DEFAULT_LABELS, ...labels };
   if (!delta) {
     return (
@@ -88,7 +90,7 @@ export function HealthDeltaMark({ delta, labels, className }: HealthDeltaMarkPro
         {l[kind]}
         {partial && <span aria-hidden>*</span>}
       </span>
-      {!quiet && !stale && (
+      {figures && !quiet && !stale && (
         <span className="font-mono tabular-nums">{signedFigures(betterCount(delta), worseCount(delta))}</span>
       )}
       {partial && <span className="sr-only">{l.partial}</span>}

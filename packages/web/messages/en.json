@@ -399,8 +399,7 @@
       },
       "verdictLabel": "What this change did to code health",
       "verdictNeutral": "Compared clean: nothing introduced, worsened or resolved.",
-      "verdictImproved": "{better, plural, one {Resolved # existing finding} other {Resolved # existing findings}} and introduced none.",
-      "verdictWorse": "{worse, plural, one {Introduced or worsened # finding} other {Introduced or worsened # findings}}{better, plural, =0 { and resolved none.} one {, and resolved # existing one.} other {, and resolved # existing ones.}}",
+      "verdictImproved": "Resolved {better, plural, one {# finding} other {# findings}} and made nothing worse. Nice work.",
       "verdictPartial": "{unscanned, plural, =0 {Part of this change could not be compared, so these counts are a floor.} one {# of its commits has not been scanned yet, so these counts are a floor.} other {# of its commits have not been scanned yet, so these counts are a floor.}}",
       "verdictUnknown": "None of this change's commits has been analysed by the current analyzer yet; recent commits are analysed as updates run.",
       "gotWorse": "Got worse",
@@ -418,7 +417,16 @@
       "metaIssues": "issues {issues}",
       "metaProvenance": "AI provenance {label}",
       "change": "Change",
-      "promptActionFix": "Copy prompt to fix what this change made worse"
+      "promptActionFix": "Copy prompt to fix what this change made worse",
+      "ledeUnitWorse": "{worse, plural, one {finding introduced or worsened} other {findings introduced or worsened}} · {better} resolved",
+      "ledeUnitBetter": "{better, plural, one {finding resolved} other {findings resolved}} · nothing made worse",
+      "ledeUnitNeutral": "findings changed",
+      "verdictWorseReading": "Each one is listed below by file, worst first, with the symbol and line. The prompt hands them to your agent.",
+      "fileFindings": "{count, plural, one {# finding} other {# findings}}",
+      "moreFiles": "{count, plural, one {Show # more file} other {Show # more files}}",
+      "findingWas": "was {severity}",
+      "findingIndirect": "file touched, not a line it wrote",
+      "promptActionFile": "Copy prompt for {file}"
     },
     "architecture": {
       "tabs": {

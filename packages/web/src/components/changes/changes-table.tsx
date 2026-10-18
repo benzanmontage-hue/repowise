@@ -6,7 +6,7 @@ import { ResponsiveTable, type ResponsiveColumn } from "@repowise-dev/ui/shared/
 import { HealthDeltaMark } from "@repowise-dev/ui/commits/health-delta-mark";
 import { formatLOC, formatRelativeTime } from "@repowise-dev/ui/lib/format";
 import type { ChangeEvidenceSummary, ChangeListItem } from "@/lib/api/changes";
-import { changeLabel } from "@/lib/changes";
+import { changeLabel, healthDeltaLabels } from "@/lib/changes";
 
 /**
  * The kept checklist, marked only when it flags something: a dot and a word
@@ -38,15 +38,7 @@ export function ChangesTable({ repoId, rows }: { repoId: string; rows: ChangeLis
   // A server from before the health rollup sends no field at all; null is
   // "not scanned" and still gets the column.
   const hasHealth = rows.some((c) => c.health !== undefined);
-  const healthLabels = {
-    improved: t("healthLabels.improved"),
-    worsened: t("healthLabels.worsened"),
-    mixed: t("healthLabels.mixed"),
-    neutral: t("healthLabels.neutral"),
-    notCompared: t("healthLabels.notCompared"),
-    partial: t("healthLabels.partial"),
-    stale: t("healthLabels.stale"),
-  };
+  const healthLabels = healthDeltaLabels(t);
 
   const columns: ResponsiveColumn<ChangeListItem>[] = [
     {

@@ -114,6 +114,7 @@ export default async function ChangeDetailPage({ params }: Props) {
   } catch {
     notFound();
   }
+  const prompt = changePromptInput(t, change);
 
   return (
     <PageShell icon={<GitPullRequest />} title={change.title}>
@@ -124,13 +125,9 @@ export default async function ChangeDetailPage({ params }: Props) {
       {/* Health leads from the change's own rollup, so it paints with the page. */}
       <ChangeHealthLede
         health={change.health}
-        action={
-          change.health?.findings?.length ? (
-            <ChangePromptAction change={changePromptInput(t, change)} />
-          ) : undefined
-        }
+        action={prompt.findings.length ? <ChangePromptAction change={prompt} /> : undefined}
       />
-      <ChangeGotWorse health={change.health} />
+      <ChangeGotWorse health={change.health} prompt={prompt} />
 
       <Suspense
         fallback={<p className="text-xs text-[var(--color-text-tertiary)]">{t("evidenceLoading")}</p>}
