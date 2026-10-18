@@ -5,15 +5,14 @@ import type { CouplingAreaPair, CouplingAreasResponse } from "@repowise-dev/type
 import { PromptForRowsButton, RowPromptAction } from "../health/row-prompt-action";
 import { CleanState } from "../shared/clean-state";
 import { PageLede } from "../shared/page-lede";
-import { shareColor } from "../shared/proportion-bar";
 import type { AreaCouplingCopy } from "./area-copy";
 import { areaLabel, type AreaPairRef } from "./area-view-state";
 
 /**
  * The row's reading. Only a hidden pair (no dependency between the two areas)
  * is marked, with a dot and a word; a layered pair that imports across is
- * expected coupling and reads as plain figures. The share bar is the neutral
- * proportion step, never a warning colour on every row.
+ * expected coupling and reads as plain figures. The share bar is neutral ink,
+ * never a warning or accent colour on every row.
  */
 function PairReading({ pair, copy }: { pair: CouplingAreaPair; copy: AreaCouplingCopy }) {
   const pct = Math.round(pair.unexplained_share * 100);
@@ -29,7 +28,7 @@ function PairReading({ pair, copy }: { pair: CouplingAreaPair; copy: AreaCouplin
         {pair.unexplained_pairs > 0 ? copy.unexplained(pair.unexplained_pairs, pct) : copy.allExplained}
       </span>
       <span aria-hidden className="block h-1 w-24 overflow-hidden rounded-full bg-[var(--color-bg-elevated)]">
-        <span className="block h-full" style={{ width: `${pct}%`, background: shareColor(0) }} />
+        <span className="block h-full" style={{ width: `${pct}%`, background: "var(--color-text-tertiary)" }} />
       </span>
     </span>
   );
@@ -104,7 +103,6 @@ function Lede({
         label={copy.ledeLabel}
         value={hidden.toLocaleString()}
         unit={copy.ledeUnit(hidden)}
-        layout="beside"
         action={
           <PromptForRowsButton
             count={hiddenRows.length}
